@@ -18,4 +18,8 @@ Solid v1 work should use the guide/sensor timing in `docs/agents/harness.md`. Ea
 
 ### Development workflow
 
-Use the `tdd` skill for implementation work unless the issue explicitly says it is documentation-only or otherwise unsuitable for test-first development. Use the `review` skill for review passes before an implementation issue is considered ready to merge or close.
+Use the `tdd` skill for implementation work unless the issue explicitly says it is documentation-only or otherwise unsuitable for test-first development. Use the `review` skill for review passes before an implementation issue is considered ready to merge or close. See `docs/agents/development-workflow.md`.
+
+### Definition of Done
+
+Implementation issues must satisfy `docs/agents/definition-of-done.md` before they are considered complete.

@@ -15,29 +15,8 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - `docs/verso-project-plan.md` is the roadmap and Solid v1 implementation plan.
 - `docs/agents/issue-tracker.md` defines how to use GitHub Issues.
 - `docs/agents/triage-labels.md` defines the canonical tracker labels.
-- The `tdd` skill is the default implementation workflow for code changes.
-- The `review` skill is the default review workflow before implementation work is considered ready to merge or close.
-
-## Parallel worktree convention
-
-Use repo-local worktrees under `.worktrees/` for concurrent agent work. Keeping worktrees inside the VS Code workspace avoids repeated permission friction from agents operating outside the current workspace, while `.gitignore` keeps the worktree directories out of the parent repository.
-
-Create worktrees from WSL at the repository root:
-
-```bash
-mkdir -p .worktrees
-git worktree add .worktrees/issue-2-scaffold -b issue-2-scaffold main
-git worktree add .worktrees/issue-10-cadence-runtime -b issue-10-cadence-runtime main
-```
-
-Use one branch and one worktree per issue. Prefer branch names like `issue-2-scaffold`, `issue-7-health-findings`, or `issue-10-cadence-runtime`. Agents should work inside the issue worktree, run that issue's verification commands there, and report any shared files they changed.
-
-Remove completed worktrees from the parent repository root after their branches are merged:
-
-```bash
-git worktree remove .worktrees/issue-2-scaffold
-git branch -d issue-2-scaffold
-```
+- `docs/agents/development-workflow.md` defines TDD/review usage, parallel worktrees, and issue-derived local ports.
+- `docs/agents/definition-of-done.md` defines when implementation issues are complete.
 
 ## Guides to add
 
@@ -86,6 +65,7 @@ Add the basic harness foundation:
 - ADR index / decision map.
 - Solid v1 implementation guide.
 - Document the repo-local `.worktrees/` convention in the implementation guide.
+- Document the issue-number-derived local port convention in the implementation guide.
 - Definition of Done.
 - Root `just verify` command.
 - Backend build/test command.
@@ -201,25 +181,6 @@ Add export trust sensors:
 - **Before #16 completes**: export/privacy guide is current and covers raw payloads, Cached Assets, Verso Annotations, Smart Shelves, Finding Dispositions, and settings.
 - **After #16 lands**: run a Solid v1 harness review to confirm guides and sensors match the actual codebase.
 
-## Development and review workflow
+## Done criteria
 
-- Use the `tdd` skill for implementation issues by default. The expected loop is red, green, refactor, then verify with the issue's assigned sensors.
-- Documentation-only or planning-only issues may skip `tdd`, but should say why in the final note or issue comment.
-- Use the `review` skill for review passes before implementation work is considered ready to merge or close.
-- Reviews should check the issue acceptance criteria, relevant ADRs, `CONTEXT.md`, assigned guide/sensor obligations, tests, and avoidable merge-conflict risk.
-- If a review finds that an assigned guide or sensor is missing, the issue should stay open or be returned for follow-up.
-
-## Definition of Done for agent issues
-
-An implementation issue is not done until:
-
-- Acceptance criteria are demonstrably met.
-- The `tdd` skill was used for code changes, or the issue notes why TDD was not applicable.
-- The `review` skill was used for a review pass, or the issue notes why a review pass was not applicable yet.
-- Relevant guide updates are made or explicitly deemed unnecessary.
-- Relevant sensors are added or updated.
-- `just verify` or the closest available issue-stage equivalent passes.
-- Tests cover behavior, not private implementation details.
-- The implementation does not contradict `CONTEXT.md` or relevant ADRs.
-- Any new durable decision is recorded as an ADR.
-- The final note names commands run and any remaining risk.
+Use `docs/agents/definition-of-done.md` for issue completion rules. Harness obligations in this file are part of that Definition of Done.
