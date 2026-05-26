@@ -14,6 +14,18 @@ Reviews should check the issue acceptance criteria, relevant ADRs, `CONTEXT.md`,
 
 If a review finds that an assigned guide or sensor is missing, the issue should stay open or be returned for follow-up.
 
+## Review Handoff
+
+For implementation issues, do not report the work as done once local verification passes. The branch should be pushed and a pull request should be created before reporting completion.
+
+The pull request should be ready for review rather than left as an unreviewable local worktree state. At minimum, that means:
+
+- the PR is opened from the issue branch;
+- the PR description summarizes scope, commands run, and remaining risk;
+- the PR is not blocked on known follow-up work needed just to make it reviewable.
+
+If local work is complete but the PR has not been created yet, report the state as "implementation complete, PR not opened yet" rather than "done."
+
 ## Parallel Worktrees
 
 Use repo-local worktrees under `.worktrees/` for concurrent agent work. Keeping worktrees inside the VS Code workspace avoids repeated permission friction from agents operating outside the current workspace, while `.gitignore` keeps the worktree directories out of the parent repository.

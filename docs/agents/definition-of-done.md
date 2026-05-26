@@ -11,4 +11,5 @@ An implementation issue is not done until:
 - Tests cover behavior, not private implementation details.
 - The implementation does not contradict `CONTEXT.md` or relevant ADRs.
 - Any new durable decision is recorded as an ADR.
+- A pull request is opened from the issue branch and is ready for review.
 - The final note names commands run and any remaining risk.
