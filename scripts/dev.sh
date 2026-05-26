@@ -21,6 +21,11 @@ for arg in "$@"; do
   esac
 done
 
+if [[ -n "$issue" && ! "$issue" =~ ^[0-9]+$ ]]; then
+  echo "Issue must be numeric, got: $issue" >&2
+  exit 2
+fi
+
 if [[ -n "$issue" ]]; then
   frontend_port="$((5200 + issue))"
   backend_port="$((7200 + issue))"

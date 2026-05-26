@@ -6,6 +6,9 @@ backend_port := env_var_or_default("VERSO_BACKEND_PORT", "7202")
 default:
     @just --list
 
+backend-restore:
+    dotnet restore Verso.slnx
+
 dev *ARGS:
     ./scripts/dev.sh {{ARGS}}
 
@@ -15,10 +18,10 @@ backend-dev BACKEND_PORT=backend_port:
 frontend-dev FRONTEND_PORT=frontend_port:
     cd src/frontend && VERSO_FRONTEND_PORT="{{FRONTEND_PORT}}" pnpm dev
 
-backend-build:
+backend-build: backend-restore
     dotnet build Verso.slnx --no-restore
 
-backend-test:
+backend-test: backend-restore
     dotnet test Verso.slnx --no-restore
 
 frontend-build:

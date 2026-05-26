@@ -22,17 +22,21 @@ try {
   await waitForServer(baseUrl);
 
   const browser = await chromium.launch();
-  const page = await browser.newPage();
-  await page.goto(baseUrl);
 
-  await page.getByRole("heading", { name: "Verso" }).waitFor();
-  assert.equal(await page.getByText("Library Table").isVisible(), true);
-  assert.equal(
-    await page.getByRole("button", { name: /ready for import/i }).isVisible(),
-    true,
-  );
+  try {
+    const page = await browser.newPage();
+    await page.goto(baseUrl);
 
-  await browser.close();
+    await page.getByRole("heading", { name: "Verso" }).waitFor();
+    assert.equal(await page.getByText("Library Table").isVisible(), true);
+    assert.equal(
+      await page.getByRole("button", { name: /ready for import/i }).isVisible(),
+      true,
+    );
+  } finally {
+    await browser.close();
+  }
+
   console.log("Verso shell smoke passed");
 } finally {
   if (server.pid) {

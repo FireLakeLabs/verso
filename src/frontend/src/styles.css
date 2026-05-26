@@ -59,12 +59,12 @@ select {
   justify-content: space-between;
   gap: 24px;
   padding: 32px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  color: var(--accent);
+  color: hsl(var(--accent));
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -73,7 +73,7 @@ select {
 
 h1 {
   margin: 0;
-  color: var(--foreground);
+  color: hsl(var(--foreground));
   font-size: 3rem;
   line-height: 1;
   letter-spacing: 0;
@@ -82,7 +82,7 @@ h1 {
 .lede {
   max-width: 640px;
   margin: 16px 0 0;
-  color: var(--muted);
+  color: hsl(var(--muted));
   font-size: 1.1rem;
   line-height: 1.55;
 }
