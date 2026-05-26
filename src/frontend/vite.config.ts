@@ -1,0 +1,21 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+const frontendPort = Number.parseInt(
+  process.env.VERSO_FRONTEND_PORT ?? "5202",
+  10,
+);
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    host: "127.0.0.1",
+    port: frontendPort,
+    strictPort: true,
+  },
+  preview: {
+    host: "127.0.0.1",
+    port: frontendPort,
+    strictPort: true,
+  },
+});
