@@ -1,0 +1,58 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { chromium } from "@playwright/test";
+
+const frontendPort = Number.parseInt(
+  process.env.VERSO_FRONTEND_PORT ?? "5202",
+  10,
+);
+const baseUrl = `http://127.0.0.1:${frontendPort}`;
+
+const server = spawn(
+  "node",
+  ["./node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--strictPort"],
+  {
+    env: { ...process.env, VERSO_FRONTEND_PORT: String(frontendPort) },
+    detached: true,
+    stdio: "inherit",
+  },
+);
+
+try {
+  await waitForServer(baseUrl);
+
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto(baseUrl);
+
+  await page.getByRole("heading", { name: "Verso" }).waitFor();
+  assert.equal(await page.getByText("Library Table").isVisible(), true);
+  assert.equal(
+    await page.getByRole("button", { name: /ready for import/i }).isVisible(),
+    true,
+  );
+
+  await browser.close();
+  console.log("Verso shell smoke passed");
+} finally {
+  if (server.pid) {
+    process.kill(-server.pid, "SIGTERM");
+  }
+}
+
+async function waitForServer(url: string) {
+  const deadline = Date.now() + 120_000;
+
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+
+  throw new Error(`Timed out waiting for ${url}`);
+}

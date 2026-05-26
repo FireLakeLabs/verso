@@ -13,8 +13,10 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - `CONTEXT.md` defines domain language. Use these terms in issue titles, tests, API DTOs, UI labels, and docs.
 - `docs/adr/` records durable decisions. Check relevant ADRs before changing architecture, data semantics, API boundaries, or Solid v1 scope.
 - `docs/verso-project-plan.md` is the roadmap and Solid v1 implementation plan.
+- `docs/adr/README.md` maps ADRs to implementation concerns.
 - `docs/agents/issue-tracker.md` defines how to use GitHub Issues.
 - `docs/agents/triage-labels.md` defines the canonical tracker labels.
+- `docs/agents/implementation-guide.md` defines the Solid v1 monorepo, worktree, port, and verification conventions.
 - `docs/agents/development-workflow.md` defines TDD/review usage, parallel worktrees, and issue-derived local ports.
 - `docs/agents/definition-of-done.md` defines when implementation issues are complete.
 
