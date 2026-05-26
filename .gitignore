@@ -14,6 +14,9 @@ Desktop.ini
 !.vscode/tasks.json
 !.vscode/launch.json
 
+# Local git worktrees for parallel agent work
+.worktrees/
+
 # Logs
 logs/
 *.log

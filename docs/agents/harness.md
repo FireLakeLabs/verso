@@ -18,6 +18,27 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - The `tdd` skill is the default implementation workflow for code changes.
 - The `review` skill is the default review workflow before implementation work is considered ready to merge or close.
 
+## Parallel worktree convention
+
+Use repo-local worktrees under `.worktrees/` for concurrent agent work. Keeping worktrees inside the VS Code workspace avoids repeated permission friction from agents operating outside the current workspace, while `.gitignore` keeps the worktree directories out of the parent repository.
+
+Create worktrees from WSL at the repository root:
+
+```bash
+mkdir -p .worktrees
+git worktree add .worktrees/issue-2-scaffold -b issue-2-scaffold main
+git worktree add .worktrees/issue-10-cadence-runtime -b issue-10-cadence-runtime main
+```
+
+Use one branch and one worktree per issue. Prefer branch names like `issue-2-scaffold`, `issue-7-health-findings`, or `issue-10-cadence-runtime`. Agents should work inside the issue worktree, run that issue's verification commands there, and report any shared files they changed.
+
+Remove completed worktrees from the parent repository root after their branches are merged:
+
+```bash
+git worktree remove .worktrees/issue-2-scaffold
+git branch -d issue-2-scaffold
+```
+
 ## Guides to add
 
 | Guide | Target issue | Required before |
@@ -64,6 +85,7 @@ Add the basic harness foundation:
 
 - ADR index / decision map.
 - Solid v1 implementation guide.
+- Document the repo-local `.worktrees/` convention in the implementation guide.
 - Definition of Done.
 - Root `just verify` command.
 - Backend build/test command.
