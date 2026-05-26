@@ -15,6 +15,8 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - `docs/verso-project-plan.md` is the roadmap and Solid v1 implementation plan.
 - `docs/agents/issue-tracker.md` defines how to use GitHub Issues.
 - `docs/agents/triage-labels.md` defines the canonical tracker labels.
+- The `tdd` skill is the default implementation workflow for code changes.
+- The `review` skill is the default review workflow before implementation work is considered ready to merge or close.
 
 ## Guides to add
 
@@ -177,11 +179,21 @@ Add export trust sensors:
 - **Before #16 completes**: export/privacy guide is current and covers raw payloads, Cached Assets, Verso Annotations, Smart Shelves, Finding Dispositions, and settings.
 - **After #16 lands**: run a Solid v1 harness review to confirm guides and sensors match the actual codebase.
 
+## Development and review workflow
+
+- Use the `tdd` skill for implementation issues by default. The expected loop is red, green, refactor, then verify with the issue's assigned sensors.
+- Documentation-only or planning-only issues may skip `tdd`, but should say why in the final note or issue comment.
+- Use the `review` skill for review passes before implementation work is considered ready to merge or close.
+- Reviews should check the issue acceptance criteria, relevant ADRs, `CONTEXT.md`, assigned guide/sensor obligations, tests, and avoidable merge-conflict risk.
+- If a review finds that an assigned guide or sensor is missing, the issue should stay open or be returned for follow-up.
+
 ## Definition of Done for agent issues
 
 An implementation issue is not done until:
 
 - Acceptance criteria are demonstrably met.
+- The `tdd` skill was used for code changes, or the issue notes why TDD was not applicable.
+- The `review` skill was used for a review pass, or the issue notes why a review pass was not applicable yet.
 - Relevant guide updates are made or explicitly deemed unnecessary.
 - Relevant sensors are added or updated.
 - `just verify` or the closest available issue-stage equivalent passes.

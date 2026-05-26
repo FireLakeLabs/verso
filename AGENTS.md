@@ -15,3 +15,7 @@ Single-context repo — one `CONTEXT.md` + `docs/adr/` at the repo root. See `do
 ### Harness
 
 Solid v1 work should use the guide/sensor timing in `docs/agents/harness.md`. Each implementation issue should add the guides and sensors assigned to it, and should not be considered done until its relevant harness pieces are in place.
+
+### Development workflow
+
+Use the `tdd` skill for implementation work unless the issue explicitly says it is documentation-only or otherwise unsuitable for test-first development. Use the `review` skill for review passes before an implementation issue is considered ready to merge or close.
