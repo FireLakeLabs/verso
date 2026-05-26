@@ -1,0 +1,3 @@
+# Export Fidelity First
+
+Library Export & Archival prioritizes backup fidelity before friendly downstream use. JSON is the Archive Export format of record for preserving Audible Facts, Cached Assets, Verso Annotations, Smart Shelves, Finding Dispositions, and relevant interpretation settings, while CSV, Markdown, and later knowledge-system exports are Projection Exports that may flatten or omit structure when their destination format cannot represent the full archive faithfully.

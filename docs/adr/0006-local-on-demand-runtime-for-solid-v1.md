@@ -1,0 +1,3 @@
+# Local On-Demand Runtime for Solid v1
+
+Verso runs as a local on-demand app for Solid v1 rather than an always-on homelab service. This keeps the first release simpler and matches the personal-tool boundary, with the accepted trade-off that refreshes, completion snapshots, price observations, and future alert-like features only happen when the Library Owner runs Verso or explicitly triggers a background-capable mode later.

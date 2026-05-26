@@ -1,0 +1,3 @@
+# Typed User-Facing Operation Errors
+
+Verso uses typed user-facing statuses for refresh, export, authentication, validation, and asset download failures, with expandable technical details for debugging. The UI should present actionable states such as authentication required, Audible unavailable, rate limited, partial refresh, export failed, asset download failed, or validation failed rather than exposing raw exception messages as the primary experience.

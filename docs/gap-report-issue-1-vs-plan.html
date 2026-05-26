@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verso — Gap Report: Issue #1 PRD vs. Project Plan</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1c2230;
+    --border: #2a3142;
+    --text: #e7ecf3;
+    --muted: #9aa4b2;
+    --accent: #f5a524;
+    --lost: #e0405a;
+    --added: #38c172;
+    --diminished: #d0a72b;
+    --parity: #6c8cff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 36px 28px 80px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: var(--text); }
+  p, li { color: var(--text); }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  .meta code { background: var(--panel-2); padding: 1px 6px; border-radius: 4px; color: #cfd6e2; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0 8px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .card .n { font-size: 22px; font-weight: 600; }
+  .card .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .card.lost .n { color: var(--lost); }
+  .card.added .n { color: var(--added); }
+  .card.diminished .n { color: var(--diminished); }
+  .card.parity .n { color: var(--parity); }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  th, td { padding: 9px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); font-size: 14px; }
+  th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  tr:last-child td { border-bottom: none; }
+  td.num { width: 38px; color: var(--muted); }
+  td.status { width: 130px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  .pill.parity { background: rgba(108,140,255,0.15); color: #aab9ff; border: 1px solid rgba(108,140,255,0.4); }
+  .pill.lost { background: rgba(224,64,90,0.15); color: #ff8a9d; border: 1px solid rgba(224,64,90,0.4); }
+  .pill.diminished { background: rgba(208,167,43,0.15); color: #ffd47a; border: 1px solid rgba(208,167,43,0.4); }
+  .pill.added { background: rgba(56,193,114,0.15); color: #8ee4ad; border: 1px solid rgba(56,193,114,0.4); }
+
+  .section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin: 12px 0; }
+  .section.lost { border-left: 3px solid var(--lost); }
+  .section.added { border-left: 3px solid var(--added); }
+  .section.diminished { border-left: 3px solid var(--diminished); }
+  ul { margin: 8px 0 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+  .tag { display: inline-block; background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: 11px; color: var(--muted); margin-right: 6px; }
+  .footer { color: var(--muted); font-size: 12px; margin-top: 40px; border-top: 1px solid var(--border); padding-top: 18px; }
+  a { color: #8ab4ff; }
+  @media (max-width: 720px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Verso — Gap Report</h1>
+    <p class="sub">Comparing GitHub Issue <a href="https://github.com/FireLakeLabs/verso/issues/1">#1 (PRD: Verso Audible Library Companion)</a> against <code>docs/verso-project-plan.md</code>.</p>
+    <p class="meta">Generated 2026-05-24. PRD scope = 60 user stories + Implementation Decisions + Testing Decisions + Out of Scope + Further Notes. Plan scope = 33 numbered features + scoring + phased roadmap + natural cuts + stack notes + open questions.</p>
+
+    <div class="cards">
+      <div class="card parity"><div class="n">31 / 33</div><div class="l">Plan features carried to PRD</div></div>
+      <div class="card lost"><div class="n">2</div><div class="l">Plan features dropped</div></div>
+      <div class="card diminished"><div class="n">~15</div><div class="l">Detail areas diminished</div></div>
+      <div class="card added"><div class="n">5</div><div class="l">New PRD-only material</div></div>
+    </div>
+
+    <h2>1. Feature-by-feature coverage</h2>
+    <p class="sub">Each row is one of the 33 numbered features in the plan and whether the PRD user stories cover it.</p>
+    <table>
+      <thead><tr><th>#</th><th>Plan feature</th><th>PRD status</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>Listening Cadence Heatmap</td><td class="status"><span class="pill parity">Carried</span></td><td>US 13–14. Tooltip behavior explicit; Open-Meteo weather overlay idea dropped.</td></tr>
+        <tr><td class="num">2</td><td>Genre Treemap</td><td class="status"><span class="pill parity">Carried</span></td><td>US 15–16. Google Books fallback enrichment not mentioned.</td></tr>
+        <tr><td class="num">3</td><td>Author Concentration</td><td class="status"><span class="pill parity">Carried</span></td><td>US 17–18. Lorenz/Pareto and Gini terminology abstracted to "author diversity score". Wikidata enrichment dropped.</td></tr>
+        <tr><td class="num">4</td><td>Narrator Affinity</td><td class="status"><span class="pill parity">Carried</span></td><td>US 19–20. ListenNotes podcast cross-reference dropped.</td></tr>
+        <tr><td class="num">5</td><td>Runtime Distribution</td><td class="status"><span class="pill parity">Carried</span></td><td>US 21–22. Ridgeline plot specifics dropped; year-over-year intent preserved.</td></tr>
+        <tr><td class="num">6</td><td>Purchase-to-Listen Lag</td><td class="status"><span class="pill parity">Carried</span></td><td>US 40 + US 38 snapshot. Beeswarm specifics dropped.</td></tr>
+        <tr><td class="num">7</td><td>Series Completion Tracker</td><td class="status"><span class="pill parity">Carried</span></td><td>US 44. Hardcover/Open Library naming dropped; behavior preserved.</td></tr>
+        <tr><td class="num">8</td><td>What's Next Series Inbox</td><td class="status"><span class="pill parity">Carried</span></td><td>US 45. "Ranked by recency of prior finish" detail dropped.</td></tr>
+        <tr><td class="num">9</td><td>AI Because You Listened</td><td class="status"><span class="pill parity">Carried</span></td><td>US 48 (implicit) — "constrained to Audible availability and not duplicates". Specific Anthropic/OpenAI choice abstracted.</td></tr>
+        <tr><td class="num">10</td><td>NYT Bestseller Crossover</td><td class="status"><span class="pill parity">Carried</span></td><td>US 49 (combined with awards).</td></tr>
+        <tr><td class="num">11</td><td>Award Winners You Missed</td><td class="status"><span class="pill parity">Carried</span></td><td>US 49 (combined with NYT). Specific awards list (Hugo, Nebula, Booker, Pulitzer, Edgar) dropped.</td></tr>
+        <tr><td class="num">12</td><td>Author Back Catalog</td><td class="status"><span class="pill parity">Carried</span></td><td>US 47.</td></tr>
+        <tr><td class="num">13</td><td>Reader Affinity Network (graph)</td><td class="status"><span class="pill lost">Dropped</span></td><td>No PRD user story covers the force-directed graph / cluster bridge view. Was Phase 4, score -3.</td></tr>
+        <tr><td class="num">14</td><td>Underexplored Adjacent Genres</td><td class="status"><span class="pill parity">Carried</span></td><td>US 50.</td></tr>
+        <tr><td class="num">15</td><td>Annual Wrapped Review</td><td class="status"><span class="pill parity">Carried</span></td><td>US 41. Personality-archetype rule, shareable image card, Framer Motion scroll animations dropped.</td></tr>
+        <tr><td class="num">16</td><td>Cost-Per-Hour Dashboard</td><td class="status"><span class="pill parity">Carried</span></td><td>US 23–24. Membership ROI framing preserved.</td></tr>
+        <tr><td class="num">17</td><td>Abandoned & At-Risk Books</td><td class="status"><span class="pill parity">Carried</span></td><td>US 36–37. Three-column board metaphor dropped.</td></tr>
+        <tr><td class="num">18</td><td>Subject Keyword Cloud</td><td class="status"><span class="pill parity">Carried</span></td><td>US 25–26.</td></tr>
+        <tr><td class="num">19</td><td>Pre-order Watchlist</td><td class="status"><span class="pill parity">Carried</span></td><td>US 51. Email channel (Resend/SendGrid/MJML) dropped.</td></tr>
+        <tr><td class="num">20</td><td>Wishlist Price & Daily Deal Monitor</td><td class="status"><span class="pill parity">Carried</span></td><td>US 52. ntfy.sh / TimescaleDB specifics dropped.</td></tr>
+        <tr><td class="num">21</td><td>Audible Plus Crossover</td><td class="status"><span class="pill parity">Carried</span></td><td>US 53.</td></tr>
+        <tr><td class="num">22</td><td>Custom Tags & Smart Shelves</td><td class="status"><span class="pill parity">Carried</span></td><td>US 29–33. Tag autocomplete and rules-DSL/JSON-predicate intent preserved.</td></tr>
+        <tr><td class="num">23</td><td>Custom Collections</td><td class="status"><span class="pill parity">Carried</span></td><td>US 34–35. dnd-kit + shareable preview (@vercel/og) dropped.</td></tr>
+        <tr><td class="num">24</td><td>Narrator Playlist Builder</td><td class="status"><span class="pill lost">Dropped</span></td><td>No PRD user story for narrator-driven queueing / road-trip playlist / <code>audible://</code> deep links.</td></tr>
+        <tr><td class="num">25</td><td>Library Health Check</td><td class="status"><span class="pill parity">Carried</span></td><td>US 8–12. All four flag types named explicitly.</td></tr>
+        <tr><td class="num">26</td><td>Cover Art Wall</td><td class="status"><span class="pill parity">Carried</span></td><td>US 27–28. Wallpaper export use-case dropped.</td></tr>
+        <tr><td class="num">27</td><td>Reading Journal & Highlights</td><td class="status"><span class="pill parity">Carried</span></td><td>US 42–43. Mobile quick capture preserved; PWA constrained to "if Reading Journal enters scope" in Out of Scope.</td></tr>
+        <tr><td class="num">28</td><td>PDF Companion Vault</td><td class="status"><span class="pill parity">Carried</span></td><td>US 54. OCR engine choice (Tesseract.js vs Adobe) and Meilisearch alternative dropped.</td></tr>
+        <tr><td class="num">29</td><td>AI Refresher Summaries</td><td class="status"><span class="pill parity">Carried</span></td><td>US 46. Grounding in captured journal notes preserved as an Implementation Decision.</td></tr>
+        <tr><td class="num">30</td><td>Library Export & Archival</td><td class="status"><span class="pill parity">Carried</span></td><td>US 3–7. Strongest coverage in the PRD; named as anchor feature for Solid v1.</td></tr>
+        <tr><td class="num">31</td><td>Cross-Platform Sync</td><td class="status"><span class="pill parity">Carried</span></td><td>US 56. On-demand-with-diff intent preserved as Implementation Decision.</td></tr>
+        <tr><td class="num">32</td><td>Obsidian / Notion Export</td><td class="status"><span class="pill parity">Carried</span></td><td>US 55. Reverse-direction file-watching dropped.</td></tr>
+        <tr><td class="num">33</td><td>Public Reader Profile</td><td class="status"><span class="pill parity">Carried</span></td><td>US 57–58. Letterboxd framing and Fire Lake Labs URL placement dropped; per-book privacy elevated to a first-class story.</td></tr>
+      </tbody>
+    </table>
+
+    <h2>2. What was lost</h2>
+    <p class="sub">Content present in the plan but not represented in the PRD.</p>
+
+    <div class="section lost">
+      <h3>Dropped features (no PRD user story)</h3>
+      <ul>
+        <li><strong>#13 Reader Affinity Network</strong> — Phase 4 force-directed cluster graph with bridge-book analysis. The plan's lowest-scoring item (V−E = −3). May be an intentional omission, but worth confirming.</li>
+        <li><strong>#24 Narrator Playlist Builder</strong> — Phase 2 narrator-driven queueing, runtime running-total, <code>audible://</code> deep links. The plan tied this to long-road-trip listening; PRD has no equivalent.</li>
+      </ul>
+    </div>
+
+    <div class="section diminished">
+      <h3>Dropped or diminished detail</h3>
+      <ul>
+        <li><strong>Effort/value scoring (1–10 with derived Score = V−E)</strong> — entire scoring table and the score column are gone. PRD has no prioritization signal beyond Solid v1 anchoring.</li>
+        <li><strong>Phased roadmap with checkboxes</strong> — Phases 1–4 with per-feature E/V annotations are reduced to a narrative paragraph under "Further Notes".</li>
+        <li><strong>"High-leverage items worth highlighting"</strong> — the rationale for why #30, #22, #8, #27, #29 punch above their weight is not in the PRD.</li>
+        <li><strong>Per-feature tech-stack choices</strong> — Recharts, Nivo, D3, react-calendar-heatmap, fuse.js, dnd-kit, TipTap/Lexical, react-pdf, html-to-image, Framer Motion, node-vibrant, @vercel/og, Hangfire, MJML, TimescaleDB, Meilisearch, ntfy.sh, Tesseract.js, Polly, CsvHelper, YamlDotNet, react-wordcloud, Cytoscape.js, React Force Graph. PRD collapses to "fit-for-purpose visualization libraries" + named TanStack Table.</li>
+        <li><strong>Per-feature external API specifics</strong> — Open-Meteo weather overlay, Google Books fallback genres, Wikidata SPARQL author enrichment, ListenNotes narrator podcast cross-ref, Hardcover GraphQL specifically, NYT Books API list history, Open Library author API, Goodreads CSV-only post-API-closure note, Adobe PDF Extract API option, OpenAI embeddings cost note. PRD names a centralized auth layer but no per-feature pairing.</li>
+        <li><strong>Audible field reference table</strong> — the <code>response_groups</code> field inventory at the top of the plan is gone. PRD speaks of "full source metadata" abstractly.</li>
+        <li><strong>AudibleApi attribution</strong> — plan links <a href="https://github.com/rmcrackan/AudibleApi">rmcrackan/AudibleApi</a>; PRD names "AudibleApi" without attribution.</li>
+        <li><strong>Specific award list</strong> for #11 (Hugo, Nebula, Booker, Pulitzer, Edgar) and the sci-fi-bias framing are gone.</li>
+        <li><strong>Wrapped personality archetype</strong> rule and shareable image card are gone (#15).</li>
+        <li><strong>Lorenz / Pareto / Gini coefficient</strong> vocabulary for #3 abstracted to "author diversity score". The statistical framing is lost.</li>
+        <li><strong>Mermaid timeline / Recharts ScatterChart</strong> visualization options for #12 are gone.</li>
+        <li><strong>Wallpaper export</strong> and "polished personal tool" framing for #26 are gone.</li>
+        <li><strong>Three-column board (drop / finish / defer)</strong> interaction model for #17 is gone — PRD only requires completion-band grouping.</li>
+        <li><strong>HashiCorp Vault + Ubuntu homelab</strong> deployment context from stack notes is gone — PRD says "centralized external API auth layer" without naming Vault or the homelab.</li>
+        <li><strong>Natural deployable cuts</strong> table — five named cuts (Weekend v1 / Solid v1 / Ambient companion / Integrated platform / Public release) — survive in compressed form under "Further Notes" but lose the per-cut rationale.</li>
+        <li><strong>Open questions list</strong> — plan's five open questions (hosting, auth scope, mobile capture, snapshot cadence, public profile location) survive verbatim in "Further Notes" but framed as resolved-later rather than as the planning hand-off they were.</li>
+      </ul>
+    </div>
+
+    <h2>3. What is new in the PRD (not in the plan)</h2>
+
+    <div class="section added">
+      <h3>New material</h3>
+      <ul>
+        <li><strong>Library ingestion as a first-class user-facing capability</strong> (US 1–2). In the plan, ingestion lives only in "Stack notes" as a precondition. The PRD promotes it to its own user stories and to an Implementation Decision that ingestion preserves source metadata broadly rather than normalizing.</li>
+        <li><strong>Architectural guardrails as user stories</strong> (US 59–60) — "external API integrations isolated from core library views" and "AI features delayed until the core data model is stable". The plan implies these by phasing but never states them.</li>
+        <li><strong>Testing Decisions section</strong> — an entire new dimension: contract-style fixtures for the AudibleApi boundary, heavy export testing, rules-engine testing for Smart Shelves, controllable clocks for background jobs, graceful failure for external adapters, structured-output fixtures for AI, privacy-controls tests before any sharing feature ships. None of this is in the plan.</li>
+        <li><strong>Explicit Out of Scope list</strong> — payments/SaaS packaging, replacing Audible playback, manual editing of source metadata, native mobile apps, realtime sync, multi-user, AI-for-Solid-v1, public profile for Solid v1. The plan never enumerates non-goals.</li>
+        <li><strong>Source-of-truth separation as a stated decision</strong> — "Keep source Audible facts separate from user-authored data... Audible metadata can be refreshed; tags, shelves, collections, journal entries, ratings, acknowledgements, and privacy preferences belong to Verso." The plan implies this by mentioning per-feature DB storage; the PRD elevates it to a principle.</li>
+      </ul>
+    </div>
+
+    <h2>4. Summary</h2>
+    <div class="section">
+      <ul>
+        <li><strong>Feature coverage is near-complete:</strong> 31 of 33 plan features map to PRD user stories. Only <strong>#13 Reader Affinity Network</strong> and <strong>#24 Narrator Playlist Builder</strong> are unrepresented.</li>
+        <li><strong>The PRD trades implementation specificity for architectural discipline.</strong> Most loss is in named libraries, named external APIs, and per-feature tech choices. Most addition is in testing strategy, scope boundaries, and source-of-truth separation.</li>
+        <li><strong>Prioritization signal weakened:</strong> the plan's E/V/Score model and phase checkboxes are gone. Solid v1 survives as the anchor target, but per-feature priority within and beyond Solid v1 is no longer encoded.</li>
+        <li><strong>Recommended follow-ups:</strong> (a) decide whether #13 and #24 are intentional cuts or PRD omissions; (b) decide whether the plan's scoring table should remain a living artifact alongside the PRD; (c) preserve per-feature external-API and viz-library notes somewhere the PRD can reference, since they will resurface as implementation questions.</li>
+      </ul>
+    </div>
+
+    <p class="footer">Sources: <a href="https://github.com/FireLakeLabs/verso/issues/1">FireLakeLabs/verso#1</a> · <code>docs/verso-project-plan.md</code></p>
+  </div>
+</body>
+</html>

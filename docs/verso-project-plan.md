@@ -1,4 +1,4 @@
-# Audible Library Project — Feature Catalog & Roadmap
+# Verso - Audible Library Project — Feature Catalog & Roadmap
 
 A consolidated planning document covering 33 feature ideas built on the [AudibleApi](https://github.com/rmcrackan/AudibleApi) library, with effort/value scoring and a phased build order.
 
@@ -130,6 +130,77 @@ If scope needs to flex, these are sensible release boundaries:
 **Integrated platform (+ Phase 3):** External APIs and AI features. The tool starts to feel like Goodreads but for audiobooks and shaped to your actual listening.
 
 **Public release (+ Phase 4):** Public profile, complex graph viz. Portfolio-piece territory under the Fire Lake Labs banner.
+
+---
+
+## Resolved Solid v1 decisions
+
+These decisions supersede earlier stack notes or speculative feature text where they conflict. See `CONTEXT.md` for domain language and `docs/adr/` for the decision record.
+
+### Product boundary
+
+- Verso is a **single-user personal library companion** for one Library Owner.
+- Audible remains the source of truth for imported facts. Verso owns user-authored annotations beside those facts.
+- An Audible Item is identified by ASIN. Duplicate detection surfaces reviewable candidates; it does not merge items.
+- Solid v1 is the first release boundary: ingestion, Library Export & Archival, Library Health Check, all ten Phase 1 reports, Custom Tags & Smart Shelves, and simple Dropped Audible Item marking.
+- Reading Journal, Collections, companion PDF caching, external enrichments, AI features, public profile, alerts, and cross-platform sync are outside Solid v1.
+- Local data is private by default. Future public surfaces require explicit public visibility choices.
+
+### Runtime and stack
+
+- Solid v1 runs locally on demand as a local web app.
+- Two local servers are acceptable: an ASP.NET Core API backend and a Vite React frontend using shadcn/ui.
+- The repository should use a simple monorepo layout: `src/backend` and `src/frontend`, with shared docs at the root.
+- SQLite is the Solid v1 database; EF Core owns persistence and migrations.
+- pnpm is the frontend package manager, and a root `justfile` should orchestrate common local development commands while preserving independent backend/frontend commands.
+- Recharts is the default charting library. Specialized visualization libraries are allowed only where Recharts is a poor fit.
+
+### Data and refresh
+
+- Live AudibleApi import is the primary ingestion path. File-based imports may come later as fallback adapters.
+- Verso delegates Audible authentication to AudibleApi's supported local flow and stores only the minimum resulting local session material.
+- Current Audible Facts reflect the latest successful Audible response. Verso stores selective Snapshot history only for analysis-relevant values such as completion, price, plans, returnability, rating, companion PDF availability, and presence.
+- Datapoints use the best available source data. Missing values stay null unless a specific analysis/display explicitly chooses interpolation or extrapolation.
+- A refresh must not replace Current Audible Facts with partial or failed data. Preserve the last successful library state and surface a typed refresh result.
+- Audible Items missing from a later successful refresh are retained as no-longer-present items with their history and Verso Annotations.
+- Store raw AudibleApi payloads alongside normalized fields for archive fidelity, audit, and debugging. Product behavior should query normalized fields.
+- Cache cover images locally when available. Preserve companion PDF links in Solid v1, but defer PDF downloading/caching to PDF Companion Vault.
+
+### Curation and interpretation
+
+- Tags are lightweight Library Owner-defined labels, not a formal taxonomy.
+- Smart Shelves are saved rules with no manual membership, exceptions, or ordering. Solid v1 rules use structured boolean groups over known Audible Facts and Verso Annotations, with no scripting or SQL editor.
+- Smart Shelf evaluation is backend-authoritative. The frontend may preview rule edits, but exports and saved shelf behavior depend on backend evaluation.
+- Library Health Check emits advisory Health Findings only. Findings do not mutate Audible Items automatically.
+- Health Finding evaluation and stable Finding Dispositions are backend-authoritative.
+- A Completed Audible Item defaults to `percent_complete >= 95`.
+- A Dropped Audible Item is only explicit Library Owner intent, never inferred. Solid v1 supports simple dropped/undropped marking.
+- Reflection reports include all Audible Items by default, including Dropped and no-longer-present items unless filtered. Action Views may hide non-actionable items by default.
+- Cost reports support a Cost Basis toggle between list price and a Library Owner-configured per-credit value. Once configured, per-credit value is the default; list price remains available.
+
+### API, UI, and exports
+
+- The API exposes explicit request/response DTOs per operation. Do not return EF entities directly.
+- No formal API endpoint versioning is needed in Solid v1 because frontend and backend evolve together locally. Archive Export payloads must include schema versioning.
+- The API is raw-ish: expose stable library, annotation, snapshot, finding, and settings shapes for frontend report modules to transform. Use focused command/query endpoints for refresh, export, tags, Smart Shelves, Health Findings, and settings.
+- UI report transforms live in plain frontend TypeScript modules, not inline React component code. Smart Shelves and Health Findings are the intentional backend exceptions.
+- Refresh and export use explicit local jobs with status, progress where available, timestamps, summaries, and typed user-facing errors plus expandable technical details.
+- Archive Export is fidelity-first. JSON is the archive format of record and should preserve Audible Facts, raw payloads, Cached Assets, Verso Annotations, Smart Shelves, Finding Dispositions, and relevant interpretation settings.
+- CSV, Markdown, and later knowledge-system exports are Projection Exports and may flatten or omit structure when the destination format cannot represent the full archive faithfully.
+- Solid v1 produces versioned Archive Exports but does not need restore/import from archive yet.
+
+### Solid v1 UX
+
+- Open to a Library Overview dashboard showing refresh status, search/filter entry points, key counts, changes or attention areas, and links into reports, Library Health Check, Library Export & Archival, Tags, and Smart Shelves.
+- Include a central searchable/filterable Library Table as the dense curation workspace.
+- Support limited bulk editing in the Library Table: bulk add/remove Tags only. No bulk delete, metadata override, or merge operations.
+- Solid v1 settings should cover only interpretation and local operation: Audible auth/session, refresh controls/status, Cost Basis, local data/storage visibility, and Archive Export options/defaults.
+
+### Implementation slicing
+
+- Build the first baseline slice as ingestion → SQLite persistence → Library Table with refresh status.
+- After that baseline, prefer multiple orthogonal issues that can be picked up in parallel.
+- Structure follow-up issues to avoid merge conflicts where practical: keep vertical slices independently demoable, avoid broad shared-file rewrites, and isolate report modules/views so parallel agents can work without stepping on the same files.
 
 ---
 
@@ -460,15 +531,15 @@ A Letterboxd-style public page — sharable URL, top books, current listen, rece
 
 ## Stack notes
 
-Given a NetClaw / .NET context, a realistic build setup:
+Resolved Solid v1 stack:
 
-1. **.NET ingestion service** wrapping AudibleApi, persisting to SQLite or Postgres. Required for everything else.
-2. **Snapshot table** for `percent_complete` and `price` history. Required for #6, #15, #17, #20. Worth setting up early even if you don't use it yet — backfill is impossible later.
-3. **Next.js + shadcn/ui frontend.** Server components for data-heavy reports, client components for interactive ones (#13 graph, #15 wrapped).
-4. **External API auth layer** (Hardcover, NYT, Anthropic). Centralize keys via HashiCorp Vault on your Ubuntu homelab — fits your existing setup.
-5. **Background job runner** (.NET BackgroundService or Hangfire) for polling, alerts, and snapshot capture.
+1. **ASP.NET Core API backend** wrapping AudibleApi, using EF Core and SQLite for local persistence.
+2. **Vite React + shadcn/ui frontend** for the local web interface. Frontend report transforms live in plain TypeScript modules.
+3. **Raw-ish API with explicit DTOs** for Audible Items, Verso Annotations, Snapshots, Health Findings, settings, and local jobs.
+4. **Selective snapshot history** for analysis-relevant observations, not a full event-sourced copy of every Audible field.
+5. **Root `justfile` + pnpm** for local development orchestration, while backend and frontend remain independently runnable.
 
-The AI-powered features (#9, #15 narrative, #29 summaries, #13 embeddings) are last to build because they're easiest but also easiest to over-engineer.
+Later phases can introduce background services, external API auth, AI providers, alerts, and homelab/always-on deployment if those features justify the added operational weight.
 
 ---
 

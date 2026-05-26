@@ -1,0 +1,3 @@
+# Defer Archive Restore Workflow
+
+Solid v1 produces a versioned Archive Export intended to be restorable, but does not include the restore/import workflow. This keeps the first release focused on high-fidelity backup output while preserving enough structure for a later restore feature to rebuild Audible Facts, Cached Assets, Verso Annotations, Smart Shelves, Finding Dispositions, and relevant interpretation settings.

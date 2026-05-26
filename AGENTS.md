@@ -1,0 +1,17 @@
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues at FireLakeLabs/verso. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Harness
+
+Solid v1 work should use the guide/sensor timing in `docs/agents/harness.md`. Each implementation issue should add the guides and sensors assigned to it, and should not be considered done until its relevant harness pieces are in place.
