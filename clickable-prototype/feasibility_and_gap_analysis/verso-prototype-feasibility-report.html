@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verso prototype feasibility and gap analysis</title>
+  <style>
+    :root {
+      --paper: #f7f8fa;
+      --white: #ffffff;
+      --ink-950: #0b0e14;
+      --ink-900: #131720;
+      --ink-800: #1e2330;
+      --ink-700: #2d3340;
+      --ink-600: #424a5c;
+      --ink-500: #5b6478;
+      --ink-400: #7a8395;
+      --ink-300: #a8b0bf;
+      --ink-200: #cdd2dd;
+      --ink-150: #dce0e8;
+      --ink-100: #e5e8ef;
+      --ember-600: #9a3309;
+      --ember-500: #c2410c;
+      --ember-100: #fdead9;
+      --positive: #3f7a4f;
+      --caution: #b58a3e;
+      --negative: #b43a3a;
+      --info: #3a6b8c;
+      --shadow: 0 18px 40px rgba(11, 14, 20, 0.08);
+      --max: 1520px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      color-scheme: light;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(180deg, #fbfcfd 0%, var(--paper) 180px, var(--paper) 100%);
+      color: var(--ink-900);
+      line-height: 1.5;
+    }
+
+    a {
+      color: var(--ember-600);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    code {
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      font-size: 0.94em;
+      background: #f3f5f8;
+      border: 1px solid var(--ink-150);
+      padding: 0.08rem 0.32rem;
+    }
+
+    .page {
+      max-width: var(--max);
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    .hero {
+      background: radial-gradient(circle at top right, rgba(194, 65, 12, 0.1), transparent 34%), var(--white);
+      border: 1px solid var(--ink-150);
+      box-shadow: var(--shadow);
+      padding: 32px;
+      margin-bottom: 28px;
+    }
+
+    .eyebrow {
+      font: 500 11px/1.2 Consolas, "SFMono-Regular", Menlo, monospace;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      margin-bottom: 12px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      letter-spacing: -0.02em;
+    }
+
+    h1 {
+      font-size: clamp(32px, 4vw, 52px);
+      line-height: 1.02;
+      max-width: 11ch;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+
+    h3 {
+      font-size: 19px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--ink-700);
+    }
+
+    .lede {
+      max-width: 78ch;
+      font-size: 17px;
+      color: var(--ink-700);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .summary-card,
+    .panel {
+      background: var(--white);
+      border: 1px solid var(--ink-150);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card {
+      padding: 18px 18px 20px;
+    }
+
+    .summary-card strong {
+      display: block;
+      font-size: 27px;
+      line-height: 1.1;
+      margin-bottom: 8px;
+      color: var(--ink-950);
+    }
+
+    .summary-card p:last-child,
+    .panel p:last-child,
+    .notes p:last-child,
+    .notes ul:last-child {
+      margin-bottom: 0;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--ink-150);
+      padding: 4px 8px;
+      font: 500 11px/1.2 Consolas, "SFMono-Regular", Menlo, monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-600);
+      background: #f8f9fb;
+      white-space: nowrap;
+    }
+
+    .high {
+      color: var(--negative);
+      border-color: rgba(180, 58, 58, 0.22);
+      background: rgba(180, 58, 58, 0.06);
+    }
+
+    .medium {
+      color: var(--caution);
+      border-color: rgba(181, 138, 62, 0.25);
+      background: rgba(181, 138, 62, 0.08);
+    }
+
+    .low {
+      color: var(--info);
+      border-color: rgba(58, 107, 140, 0.22);
+      background: rgba(58, 107, 140, 0.08);
+    }
+
+    .section {
+      margin-top: 28px;
+    }
+
+    .panel {
+      padding: 22px 22px 24px;
+      overflow: hidden;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 880px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      vertical-align: top;
+      padding: 13px 12px;
+      border-bottom: 1px solid var(--ink-150);
+    }
+
+    th {
+      font: 500 11px/1.2 Consolas, "SFMono-Regular", Menlo, monospace;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-500);
+      background: #fbfcfd;
+    }
+
+    td {
+      color: var(--ink-700);
+    }
+
+    ul {
+      margin: 0 0 14px;
+      padding-left: 20px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.95fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .gallery {
+      display: grid;
+      gap: 14px;
+    }
+
+    .gallery.two {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    figure {
+      margin: 0;
+      background: #f8f9fb;
+      border: 1px solid var(--ink-150);
+      padding: 12px;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--ink-150);
+      background: var(--white);
+    }
+
+    figcaption {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--ink-600);
+    }
+
+    .notes {
+      background: #fcfcfd;
+      border: 1px solid var(--ink-150);
+      padding: 16px;
+    }
+
+    .notes h3 {
+      margin-bottom: 12px;
+    }
+
+    .keyline {
+      height: 1px;
+      background: linear-gradient(90deg, var(--ember-500), var(--ink-150));
+      margin: 32px 0 0;
+    }
+
+    .callout {
+      border-left: 3px solid var(--ember-500);
+      background: var(--ember-100);
+      padding: 12px 14px;
+      color: var(--ink-800);
+      margin-top: 16px;
+    }
+
+    .subgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 18px;
+    }
+
+    .mini-panel {
+      border: 1px solid var(--ink-150);
+      background: #fbfcfd;
+      padding: 16px;
+    }
+
+    .mini-panel h3 {
+      font-size: 17px;
+      margin-bottom: 10px;
+    }
+
+    .footer-note {
+      margin-top: 26px;
+      color: var(--ink-500);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1100px) {
+      .summary-grid,
+      .two-col,
+      .subgrid,
+      .gallery.two {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        min-width: 720px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        padding: 24px 14px 48px;
+      }
+
+      .hero,
+      .panel {
+        padding: 18px;
+      }
+
+      h1 {
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <div class="eyebrow">Verso prototype review · generated 2026-05-29</div>
+      <h1>Prototype feasibility and gap analysis</h1>
+      <p class="lede">
+        Feasibility is strong if this prototype is treated as a binding design reference for the screens it actually covers, not as a complete Solid v1 product spec.
+        The architecture and current frontend scaffold are compatible with the design direction, but the issue backlog needs cleanup before implementation starts in earnest.
+      </p>
+      <div class="summary-grid">
+        <article class="summary-card">
+          <div class="eyebrow">Feasibility</div>
+          <strong>High for covered screens</strong>
+          <p>
+            The prototype was handed off for the same core stack Verso already chose: Vite + React + shadcn/ui + TypeScript on the frontend, local ASP.NET Core + SQLite on the backend.
+          </p>
+        </article>
+        <article class="summary-card">
+          <div class="eyebrow">Backlog fit</div>
+          <strong>Partial, not complete</strong>
+          <p>
+            Several issues align well, but multiple issue bodies are either broader than the prototype, narrower than the signed-off UI, or missing a design entirely.
+          </p>
+        </article>
+        <article class="summary-card">
+          <div class="eyebrow">Main risk</div>
+          <strong>Ownership gaps</strong>
+          <p>
+            Item Detail, UI preference persistence, export-job UX, and several Solid v1 reports do not have a clean one-to-one issue-to-design mapping yet.
+          </p>
+        </article>
+      </div>
+      <div class="callout">
+        Recommendation: accept this prototype as the authoritative visual target for the already-modeled surfaces, then update the issue backlog before implementation to avoid teams inventing missing flows or building against contradictory scope.
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="eyebrow">Executive read</div>
+      <h2>What is feasible right now</h2>
+      <ul>
+        <li>The current frontend scaffold can absorb the Firelake Labs visual system without an architecture change. The existing shadcn/Tailwind CSS-variable setup is a workable base for remapping typography, colors, spacing, and radii.</li>
+        <li>The prototype matches the repo's big architectural choices: local two-server app shape, backend-owned refresh and health evaluation, frontend-owned report transforms, cover caching, and settings as a local-only surface.</li>
+        <li>The prototype is not a complete Solid v1 screen inventory. Missing or underspecified areas include Listening Cadence, Genre Treemap, Narrator Affinity, Cost-per-Hour, Smart Shelves, export job status, dedicated tag-management UI, command palette behavior, and robust empty/error states.</li>
+        <li>The biggest issue backlog problem is not visual feasibility. It is ownership clarity. Several shipped prototype surfaces do not have a clean issue owner, while some issues bundle one designed screen with one undesigned screen.</li>
+      </ul>
+    </section>
+
+    <section class="section panel">
+      <div class="eyebrow">Issue changes</div>
+      <h2>Backlog changes required before implementation</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Issue</th>
+              <th>Change needed</th>
+              <th>Why</th>
+              <th>Priority</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/3">#3</a></td>
+              <td>Expand acceptance criteria to name the UI-critical DTO fields and raw-ish response coverage used by Item Detail, reports, and cover handling.</td>
+              <td>The prototype depends on series metadata, category ladders, subject keywords, publisher summary, returnability, plans, cover pointers, and last-seen facts. The issue body is directionally right but underspecified for this UI.</td>
+              <td><span class="badge medium">Medium</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/5">#5</a></td>
+              <td>Either expand it to own Library Overview variants, the dedicated Refresh Status screen, and Item Detail, or split those surfaces into a new issue.</td>
+              <td>The prototype handoff treats Overview, Library Table, Item Detail, and Refresh Status as one coherent baseline experience. Item Detail currently has no clear owner at all.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/6">#6</a></td>
+              <td>Resolve whether bulk tagging applies to selected items only or to filtered result sets, and decide whether tag CRUD is inline-only or needs a dedicated management surface.</td>
+              <td>The issue says selected or filtered items; the prototype only shows selected-item bulk actions. The library page also shows a <code>Manage tags</code> action with no designed destination.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/7">#7</a></td>
+              <td>Add snooze semantics or remove snooze from the design, and add a clear dismissed/acknowledged view to the issue and UI.</td>
+              <td>The prototype has <code>Dismiss</code> and <code>Snooze</code>, but the issue only defines stable dispositions. It also requires active and dismissed findings to be clear, which the prototype does not fully show.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/8">#8</a></td>
+              <td>Own the app-level UI preferences and define refresh schedule semantics more precisely.</td>
+              <td>Top-nav vs sidebar, calm vs dense overview, and table-density defaults are signed-off behaviors, but today they only live in the prototype tweak panel. <code>Daily at idle</code> is also visually present but not operationally defined.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/10">#10</a></td>
+              <td>Split Runtime Distribution from Listening Cadence, or explicitly mark Cadence as waiting on new design work.</td>
+              <td>The prototype fully designs Runtime Distribution but not the Listening Cadence Heatmap. The mini cadence sparkline in dense Overview is not a substitute for the missing report.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/11">#11</a></td>
+              <td>Split Subject Keywords from Genre Treemap, or explicitly gate Treemap on new design work.</td>
+              <td>Subject Keywords is designed in detail. Genre Treemap is not represented in the prototype bundle.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/12">#12</a></td>
+              <td>Split Author Concentration from Narrator Affinity, or explicitly gate Narrator Affinity on new design work.</td>
+              <td>The prototype fully designs Author Concentration. It only shows a small narrator leaderboard preview on the dense overview, not a full Narrator Affinity report.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/13">#13</a></td>
+              <td>Add or link a design task before implementation starts.</td>
+              <td>Smart Shelves are in scope for Solid v1, but the current prototype does not include a rule-builder, list view, preview flow, or edit surface.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/15">#15</a></td>
+              <td>Align the accepted sort set with the signed-off design.</td>
+              <td>The issue suggests recency, release date, runtime, or title. The prototype uses Recent, Runtime, Palette, and Random. That is a direct product-level mismatch.</td>
+              <td><span class="badge medium">Medium</span></td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/FireLakeLabs/verso/issues/16">#16</a></td>
+              <td>Add a design step or new sub-issue for export job status, progress, completion, and error handling.</td>
+              <td>The prototype covers export entry points and export options in Settings, but not the required export-job experience. The refresh-job design is a plausible pattern to reuse, but that decision is not made yet.</td>
+              <td><span class="badge high">High</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="subgrid">
+        <div class="mini-panel">
+          <div class="eyebrow">Recommended new issue if not folded elsewhere</div>
+          <h3>App shell and preference persistence</h3>
+          <p>
+            Add a small issue for the production controls that replace the prototype tweak panel: nav chrome choice, overview variant choice, and default library-density preference.
+            This can live under <a href="https://github.com/FireLakeLabs/verso/issues/8">#8</a> if you do not want a new issue.
+          </p>
+        </div>
+        <div class="mini-panel">
+          <div class="eyebrow">Recommended new issue if not folded into #5</div>
+          <h3>Item Detail and selective snapshot history</h3>
+          <p>
+            If <a href="https://github.com/FireLakeLabs/verso/issues/5">#5</a> stays focused on refresh and the Library Table, add a separate issue for Item Detail, per-item refresh, dropped state entry, tag surface, and snapshot-history presentation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="eyebrow">Prototype gaps</div>
+      <h2>What the current prototype still does not cover</h2>
+      <div class="subgrid">
+        <div class="mini-panel">
+          <h3>Missing screens or control flows</h3>
+          <ul>
+            <li>Listening Cadence Heatmap</li>
+            <li>Genre Treemap</li>
+            <li>Narrator Affinity report</li>
+            <li>Cost-per-Hour report</li>
+            <li>Smart Shelf list, rule builder, and preview flows</li>
+            <li>Archive export job status, progress, completion, and errors</li>
+            <li>Dedicated tag management or tag add/remove dialogs</li>
+          </ul>
+        </div>
+        <div class="mini-panel">
+          <h3>Cross-cutting gaps</h3>
+          <ul>
+            <li>In-product controls for nav style and overview preference; today those live only in the design-tool tweak panel.</li>
+            <li>Command palette behavior, despite a visible <code>⌘K</code> affordance in the shell.</li>
+            <li>Systematic empty, zero-data, and error-state coverage for refresh, export, health, and report screens.</li>
+            <li>Responsive or narrow-viewport treatment. The handoff is desktop-first only.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout">
+        The Firelake Labs design skill is a good fit for generating the missing report screens, Smart Shelf builder, export-job surface, and a small preference settings treatment that replaces the tweak panel in production.
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="eyebrow">Direct incompatibilities</div>
+      <h2>Design, issue, and prototype mismatches that must be resolved</h2>
+      <ul>
+        <li><strong>Bulk tagging scope:</strong> <a href="https://github.com/FireLakeLabs/verso/issues/6">#6</a> says bulk tagging can target selected or filtered items; the prototype only shows actions for selected rows.</li>
+        <li><strong>Health dispositions:</strong> <a href="https://github.com/FireLakeLabs/verso/issues/7">#7</a> defines stable dispositions, but the prototype adds <code>Snooze</code> without a corresponding model or lifecycle.</li>
+        <li><strong>Cover-wall sorts:</strong> <a href="https://github.com/FireLakeLabs/verso/issues/15">#15</a> and the prototype disagree about which sorts matter.</li>
+        <li><strong>Combined report issues:</strong> <a href="https://github.com/FireLakeLabs/verso/issues/10">#10</a>, <a href="https://github.com/FireLakeLabs/verso/issues/11">#11</a>, and <a href="https://github.com/FireLakeLabs/verso/issues/12">#12</a> each bundle one designed report with one undesigned report.</li>
+        <li><strong>Overview and Item Detail ownership:</strong> the handoff treats them as part of the Solid v1 baseline, but no current issue body names their full UI scope clearly enough.</li>
+        <li><strong>Preference controls:</strong> nav style and overview variant are required behaviors in the handoff, but they are not currently represented as a product-owned settings surface.</li>
+        <li><strong>Export job UX:</strong> <a href="https://github.com/FireLakeLabs/verso/issues/16">#16</a> requires a local job with status and typed errors, but the prototype does not show that UI yet.</li>
+      </ul>
+    </section>
+
+    <div class="keyline"></div>
+
+    <section class="section">
+      <div class="eyebrow">Screen review</div>
+      <h2>Per-section analysis with prototype evidence</h2>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="shell-sidebar.png" alt="Sidebar navigation variant from the Verso prototype" />
+            <figcaption>Navigation shell variant: sidebar rail. The default top-nav shell is visible throughout the other screen captures.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Navigation shell</div>
+          <h3>Feasible, but currently unowned</h3>
+          <ul>
+            <li>Both top-nav and sidebar patterns are visually complete enough to implement.</li>
+            <li>No issue clearly owns the production control for switching between them or persisting the preference.</li>
+            <li>This belongs either in <a href="https://github.com/FireLakeLabs/verso/issues/8">#8</a> or in a small follow-up issue from the closed scaffold work.</li>
+            <li>The current frontend scaffold is compatible with this shell, but the Firelake token remap should happen before shipping a large batch of stock shadcn components.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery two">
+          <figure>
+            <img src="overview-calm.png" alt="Calm library overview variant" />
+            <figcaption>Library overview: calm variant.</figcaption>
+          </figure>
+          <figure>
+            <img src="overview-dense.png" alt="Data-dense library overview variant" />
+            <figcaption>Library overview: data-dense variant.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Library overview</div>
+          <h3>Strong product fit, but the issue body is too narrow</h3>
+          <ul>
+            <li>The design clearly matches the intended first-screen experience from the ADRs and is practical to build.</li>
+            <li><a href="https://github.com/FireLakeLabs/verso/issues/5">#5</a> should explicitly own both overview variants, report entry points, refresh summary, and the links into Library Table, Health, and Refresh Status.</li>
+            <li>The dense variant contains mini cadence and narrator previews. Those support discovery, but they do not replace the missing full designs for Listening Cadence and Narrator Affinity.</li>
+            <li>The user preference for calm vs dense needs a real product control, not just the prototype tweak panel.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery two">
+          <figure>
+            <img src="library-rows.png" alt="Library table in compact row mode with bulk bar visible" />
+            <figcaption>Library workspace: compact rows mode with the bulk bar visible.</figcaption>
+          </figure>
+          <figure>
+            <img src="library-cards.png" alt="Library table in card grid mode" />
+            <figcaption>Library workspace: card-grid mode.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Library table</div>
+          <h3>Mostly aligned, with one direct issue mismatch</h3>
+          <ul>
+            <li>The screen is ready to drive implementation of search, filtering, sorting, view toggles, pagination, dropped visibility, and row selection.</li>
+            <li>The mismatch is in <a href="https://github.com/FireLakeLabs/verso/issues/6">#6</a>: the issue allows bulk actions for selected or filtered items, but the designed UI only supports selected items.</li>
+            <li>The visible <code>Manage tags</code> action has no designed destination. Decide whether tag CRUD remains inline or whether the app needs a dedicated tag-management surface.</li>
+            <li>Both rows and cards look shippable. Keep both. The product already implies a user-facing mode choice.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="item-detail.png" alt="Item detail screen showing audible facts and Verso annotations" />
+            <figcaption>Item detail: source facts, annotation layer, per-item actions, and selective snapshot history.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Item detail</div>
+          <h3>High-value screen with no clean backlog owner</h3>
+          <ul>
+            <li>This screen is detailed enough to implement and is important to the overall product quality.</li>
+            <li>No current issue owns it cleanly. The best fix is either to expand <a href="https://github.com/FireLakeLabs/verso/issues/5">#5</a> or add a dedicated issue for Item Detail and snapshot-history presentation.</li>
+            <li><a href="https://github.com/FireLakeLabs/verso/issues/3">#3</a> should call out the DTO fields this screen depends on: category ladder, keywords, plans, returnability, series metadata, summary, price, dates, and cover-asset references.</li>
+            <li><a href="https://github.com/FireLakeLabs/verso/issues/6">#6</a> also touches this screen because tags and dropped marking are visible here, not only in the Library Table.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="cover-wall.png" alt="Cover wall screen from the prototype" />
+            <figcaption>Cover wall: aesthetic browse surface with design-specific sort choices.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Cover wall</div>
+          <h3>Ready to implement after one product decision</h3>
+          <ul>
+            <li>This is a strong fit for <a href="https://github.com/FireLakeLabs/verso/issues/15">#15</a> backed by <a href="https://github.com/FireLakeLabs/verso/issues/9">#9</a>.</li>
+            <li>The unresolved question is sorting: the signed-off design favors Recent, Runtime, Palette, and Random, while the issue text allows release date and title instead.</li>
+            <li>The prototype fallback covers work as graceful placeholders only. Production still needs local cached cover assets as the primary path.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="report-authors.png" alt="Author concentration report from the prototype" />
+            <figcaption>Author concentration: complete visual spec for the author half of the report issue.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Author concentration</div>
+          <h3>Designed well, but bundled with an undesigned sibling report</h3>
+          <ul>
+            <li>This screen is complete enough to implement the author half of <a href="https://github.com/FireLakeLabs/verso/issues/12">#12</a>.</li>
+            <li>The same issue also owns Narrator Affinity, which is not designed here beyond a small dense-overview preview.</li>
+            <li>Split the issue or add a design task for the missing narrator screen before implementation starts.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="report-runtime.png" alt="Runtime distribution report from the prototype" />
+            <figcaption>Runtime distribution: the designed half of issue #10.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Runtime distribution</div>
+          <h3>Good to build now, but paired with a missing cadence report</h3>
+          <ul>
+            <li>This screen provides enough detail for the Runtime Distribution half of <a href="https://github.com/FireLakeLabs/verso/issues/10">#10</a>.</li>
+            <li>The Listening Cadence Heatmap still needs a dedicated design. The dense overview sparkline is only a teaser.</li>
+            <li>If implementation begins without splitting the issue, the team will either invent the cadence screen or block on design mid-stream.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="report-keywords.png" alt="Subject keywords report from the prototype" />
+            <figcaption>Subject keywords: weighted cloud plus trend small multiples.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Subject keywords</div>
+          <h3>Strong fit for keywords, no coverage for treemap</h3>
+          <ul>
+            <li>This is a complete design for the Subject Keyword side of <a href="https://github.com/FireLakeLabs/verso/issues/11">#11</a>.</li>
+            <li>Genre Treemap still has no signed-off visual treatment in the bundle.</li>
+            <li>Either split the issue or explicitly queue a design step before the treemap work starts.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="health.png" alt="Library health check screen from the prototype" />
+            <figcaption>Library health: backend-evaluated findings with advisory actions.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Library health</div>
+          <h3>Very close, but the disposition model is not resolved</h3>
+          <ul>
+            <li>This is a good visual fit for <a href="https://github.com/FireLakeLabs/verso/issues/7">#7</a> and the backend-authoritative findings model.</li>
+            <li>The main design/issue mismatch is the <code>Snooze</code> action. If snooze is real, the issue needs a time-based disposition model. If it is not real, the button should be removed from the design.</li>
+            <li>The issue also asks for active and dismissed findings to be clearly presented. The prototype mostly emphasizes active findings and an undo strip, but not a stable dismissed view.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery">
+          <figure>
+            <img src="refresh.png" alt="Refresh status screen while a refresh job is running" />
+            <figcaption>Refresh status while running: step pipeline, progress, policy callout, and history.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Refresh status</div>
+          <h3>One of the strongest alignments in the bundle</h3>
+          <ul>
+            <li>This screen fits <a href="https://github.com/FireLakeLabs/verso/issues/5">#5</a> extremely well and reflects the ADR-backed refresh pipeline cleanly.</li>
+            <li>The issue should call out the dedicated refresh-status screen explicitly if it stays separate from the Overview and Library Table acceptance text.</li>
+            <li>The <code>Schedule…</code> entry and the Settings refresh panel surface the choice, but the operational meaning of <code>Daily at idle</code> still needs refinement in the backlog.</li>
+            <li>This pattern is also the obvious template for the still-undesigned export-job surface required by <a href="https://github.com/FireLakeLabs/verso/issues/16">#16</a>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section panel">
+      <div class="two-col">
+        <div class="gallery two">
+          <figure>
+            <img src="settings-auth.png" alt="Settings screen with authentication section visible" />
+            <figcaption>Settings: authentication section.</figcaption>
+          </figure>
+          <figure>
+            <img src="settings-refresh.png" alt="Settings screen with refresh section visible" />
+            <figcaption>Settings: refresh section, including trigger and selective snapshot display.</figcaption>
+          </figure>
+        </div>
+        <div class="notes">
+          <div class="eyebrow">Settings</div>
+          <h3>Mostly aligned, with one missing product-surface concept</h3>
+          <ul>
+            <li>The major settings areas in <a href="https://github.com/FireLakeLabs/verso/issues/8">#8</a> are represented well: auth, refresh, cost basis, local data, and archive export defaults.</li>
+            <li>What is still missing is the real production home for shell and display preferences. Those exist only in the prototype tweak panel right now.</li>
+            <li>The refresh panel is a good place to clarify <code>Daily at idle</code>, retention policy, and the read-only snapshot field set.</li>
+            <li>Archive export options are visually present, but the export-job lifecycle and result handling required by <a href="https://github.com/FireLakeLabs/verso/issues/16">#16</a> are not.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Evidence basis: screenshots captured from the local prototype entry point <code>prototype/Verso.html</code>, issue bodies fetched from <code>FireLakeLabs/verso</code> on 2026-05-29, and feasibility checked against the current frontend scaffold's shadcn/Tailwind setup.
+    </p>
+  </div>
+</body>
+</html>
