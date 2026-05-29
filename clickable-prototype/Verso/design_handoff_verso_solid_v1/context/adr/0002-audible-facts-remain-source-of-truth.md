@@ -1,0 +1,3 @@
+# Audible Facts Remain Source of Truth
+
+Audible remains the source of truth for imported audiobook facts such as title, authors, narrators, runtime, purchase date, series metadata, price, completion percent, and PDF links. Verso stores Library Owner-authored annotations beside those facts rather than treating local edits as corrections, so refresh behavior stays simple while tags, shelves, journal entries, collection order, acknowledgements, and privacy choices survive Audible updates.

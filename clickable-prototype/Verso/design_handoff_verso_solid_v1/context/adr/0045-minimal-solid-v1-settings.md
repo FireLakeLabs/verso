@@ -1,0 +1,3 @@
+# Minimal Solid v1 Settings
+
+Solid v1 includes only settings that affect interpretation or local operation: Audible authentication/session status, library refresh controls and status, Cost Basis including configured per-credit value, local data/storage visibility, and Archive Export options/defaults. Settings for AI providers, external APIs, alerts, public profile, notifications, and mobile capture wait until those features enter scope.
