@@ -175,7 +175,7 @@ public sealed class AudibleLibraryImportTests
 
         Assert.NotNull(error);
         Assert.Equal("audible-authentication-start-failed", error.Code);
-        Assert.Contains("Synthetic login failure", error.Message);
+        Assert.Equal("Audible authentication could not be started. Try again.", error.Message);
     }
 
     private sealed class VersoApplicationFactory(IReadOnlyList<ImportedAudibleItem> items) : WebApplicationFactory<Program>

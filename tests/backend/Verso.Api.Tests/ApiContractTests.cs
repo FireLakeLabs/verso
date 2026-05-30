@@ -66,6 +66,7 @@ public sealed class ApiContractTests
         Assert.True(json.ContainsKey("code"));
         Assert.True(json.ContainsKey("message"));
         Assert.Equal("audible-authentication-start-failed", json["code"]!.GetValue<string>());
+        Assert.Equal("Audible authentication could not be started. Try again.", json["message"]!.GetValue<string>());
     }
 
     [Fact]
@@ -83,7 +84,7 @@ public sealed class ApiContractTests
         var json = JsonNode.Parse(body)!.AsObject();
 
         Assert.Equal("audible-library-import-failed", json["code"]!.GetValue<string>());
-        Assert.Contains("authentication", json["message"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Audible Library import failed. Re-authenticate and try again.", json["message"]!.GetValue<string>());
     }
 
     private sealed class ContractApplicationFactory(IReadOnlyList<ImportedAudibleItem> items) : WebApplicationFactory<Program>

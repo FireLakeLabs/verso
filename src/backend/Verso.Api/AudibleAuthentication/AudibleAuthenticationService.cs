@@ -11,7 +11,10 @@ public sealed class AudibleAuthenticationService(
 {
     public const int CurrentSessionId = 1;
 
+    private static readonly TimeSpan PendingAuthenticationTimeout = TimeSpan.FromMinutes(10);
+
     private readonly ConcurrentDictionary<Guid, PendingAudibleAuthentication> pendingSessions = new();
+    private readonly TimeProvider clock = timeProvider;
 
     public async Task<StartAudibleAuthenticationResponse> StartAsync(StartAudibleAuthenticationRequest request, CancellationToken cancellationToken)
     {
@@ -23,7 +26,7 @@ public sealed class AudibleAuthenticationService(
             File.Delete(identityFilePath);
         }
 
-        var pendingAuthentication = new PendingAudibleAuthentication(locale, identityFilePath);
+        var pendingAuthentication = new PendingAudibleAuthentication(locale, identityFilePath, clock);
         if (!pendingSessions.TryAdd(pendingAuthentication.SessionId, pendingAuthentication))
         {
             throw new InvalidOperationException("Could not create a pending Audible authentication session.");
@@ -108,33 +111,43 @@ public sealed class AudibleAuthenticationService(
                     pendingAuthentication.PublishPrompt(prompt);
                     return pendingAuthentication.WaitForResponseUrlAsync();
                 },
-                CancellationToken.None);
+                pendingAuthentication.CancellationToken);
 
-            await using var database = await databaseFactory.CreateDbContextAsync();
+            await using var database = await databaseFactory.CreateDbContextAsync(pendingAuthentication.CancellationToken);
 
             var currentSession = await database.AudibleAuthenticationStates
-                .SingleOrDefaultAsync(session => session.Id == CurrentSessionId)
+                .SingleOrDefaultAsync(session => session.Id == CurrentSessionId, pendingAuthentication.CancellationToken)
                 ?? new AudibleAuthenticationStateEntity { Id = CurrentSessionId };
 
             currentSession.Locale = pendingAuthentication.Locale;
             currentSession.IdentityFilePath = pendingAuthentication.IdentityFilePath;
-            currentSession.AuthenticatedAtUtc = timeProvider.GetUtcNow();
+            currentSession.AuthenticatedAtUtc = clock.GetUtcNow();
 
             if (database.Entry(currentSession).State == EntityState.Detached)
             {
                 database.AudibleAuthenticationStates.Add(currentSession);
             }
 
-            await database.SaveChangesAsync();
+            await database.SaveChangesAsync(pendingAuthentication.CancellationToken);
             pendingAuthentication.MarkAuthenticated(currentSession.AuthenticatedAtUtc);
+        }
+        catch (OperationCanceledException) when (pendingAuthentication.TimeoutTokenSource.IsCancellationRequested)
+        {
+            pendingAuthentication.MarkFailed("Audible authentication timed out before completion.");
         }
         catch (Exception exception)
         {
             pendingAuthentication.MarkFailed(exception.Message);
         }
+        finally
+        {
+            pendingSessions.TryRemove(pendingAuthentication.SessionId, out _);
+            pendingAuthentication.Dispose();
+        }
     }
 
-    private sealed class PendingAudibleAuthentication(string locale, string identityFilePath)
+    private sealed class PendingAudibleAuthentication(string locale, string identityFilePath, TimeProvider clock)
+        : IDisposable
     {
         private readonly TaskCompletionSource<ExternalAudibleLoginPrompt> promptSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<string> responseUrlSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -153,6 +166,10 @@ public sealed class AudibleAuthenticationService(
 
         public Task Runner { get; set; } = Task.CompletedTask;
 
+        public CancellationTokenSource TimeoutTokenSource { get; } = new(PendingAuthenticationTimeout, clock);
+
+        public CancellationToken CancellationToken => TimeoutTokenSource.Token;
+
         public void PublishPrompt(ExternalAudibleLoginPrompt prompt)
         {
             Status = "awaiting-browser-completion";
@@ -167,12 +184,14 @@ public sealed class AudibleAuthenticationService(
         public async Task<ExternalAudibleLoginPrompt> WaitForPromptOrFailureAsync(CancellationToken cancellationToken)
         {
             var promptTask = WaitForPromptAsync(cancellationToken);
-            var completedTask = await Task.WhenAny(promptTask, Runner.WaitAsync(cancellationToken));
+            var completedTask = await Task.WhenAny(promptTask, Runner);
 
             if (completedTask == promptTask)
             {
                 return await promptTask;
             }
+
+            cancellationToken.ThrowIfCancellationRequested();
 
             throw new InvalidOperationException(LastError ?? "Audible authentication failed before the browser prompt was created.");
         }
@@ -184,7 +203,7 @@ public sealed class AudibleAuthenticationService(
 
         public Task<string> WaitForResponseUrlAsync()
         {
-            return responseUrlSource.Task;
+            return responseUrlSource.Task.WaitAsync(CancellationToken);
         }
 
         public void MarkAuthenticated(DateTimeOffset authenticatedAtUtc)
@@ -203,6 +222,11 @@ public sealed class AudibleAuthenticationService(
         public AudibleAuthenticationStatusResponse ToStatusResponse()
         {
             return new AudibleAuthenticationStatusResponse(Status, Locale, AuthenticatedAtUtc, LastError);
+        }
+
+        public void Dispose()
+        {
+            TimeoutTokenSource.Dispose();
         }
     }
 }
