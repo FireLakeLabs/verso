@@ -1,114 +1,41 @@
 ---
-description: 'Guidelines for building C# applications'
+description: 'Repo-wide C# language and style conventions for Verso (.NET 10 / C# 14).'
 applyTo: '**/*.cs'
 ---
 
-# C# Development
+# C# conventions (Verso)
 
-## C# Instructions
-- Always use the latest version C#, currently C# 14 features.
-- Write clear and concise comments for each function.
+Repo-wide C# rules. Domain and backend-specific rules live in `src/backend/AGENTS.md`; mechanical style (naming, `var`, file-scoped namespaces, brace and spacing rules) is enforced by `.editorconfig` and `dotnet format` — follow that rather than restating it here.
 
-## General Instructions
-- Make only high confidence suggestions when reviewing code changes.
-- Write code with good maintainability practices, including comments on why certain design decisions were made.
-- Handle edge cases and write clear exception handling.
-- For libraries or external dependencies, mention their usage and purpose in comments.
+## Language level
 
-## Naming Conventions
+- Target is `net10.0` with C# 14. Reach for current-version features (collection expressions, primary constructors, pattern matching, `required` members) when they make code clearer — not for novelty.
+- `ImplicitUsings` is enabled. Do not add `using` directives that are already implicit.
+- Nullable reference types are enabled. Trust the annotations: express intent with `?`, and do not add defensive null checks for values the type system already guarantees as non-null. Use `is null` / `is not null` rather than `== null` / `!= null`.
 
-- Follow PascalCase for component names, method names, and public members.
-- Use camelCase for private fields and local variables.
-- Prefix interface names with "I" (e.g., IUserService).
+## Async
 
-## Formatting
+- Async all the way down. Never block on async with `.Result`, `.Wait()`, or `.GetAwaiter().GetResult()`.
+- Suffix asynchronous methods with `Async` (e.g. `GetLibraryAsync`), matching the existing code.
+- Accept a `CancellationToken` on async entry points and honor it — this backs the "imports stay cancellable" rule in `src/backend/AGENTS.md`.
 
-- Apply code-formatting style defined in `.editorconfig`.
-- Prefer file-scoped namespace declarations and single-line using directives.
-- Insert a newline before the opening curly brace of any code block (e.g., after `if`, `for`, `while`, `foreach`, `using`, `try`, etc.).
-- Ensure that the final return statement of a method is on its own line.
-- Use pattern matching and switch expressions wherever possible.
-- Use `nameof` instead of string literals when referring to member names.
-- Ensure that XML doc comments are created for any public APIs. When applicable, include `<example>` and `<code>` documentation in the comments.
+## Types and data
 
-## Project Setup and Structure
+- Model immutable data carriers (DTOs, API contracts, imported Audible payloads) as `record` / `record struct` with init-only members. Mutable EF entities are the exception, not the default.
+- Keep types small and single-purpose; favor composition over inheritance.
+- Mark fields `readonly` when they are not reassigned after construction.
 
-- Guide users through creating a new .NET project with the appropriate templates.
-- Explain the purpose of each generated file and folder to build understanding of the project structure.
-- Demonstrate how to organize code using feature folders or domain-driven design principles.
-- Show proper separation of concerns with models, services, and data access layers.
-- Explain the Program.cs and configuration system in ASP.NET Core 10 including environment-specific settings.
+## Error handling
 
-## Nullable Reference Types
+- Throw specific exception types. Do not throw or catch bare `Exception` except at a deliberate top-level boundary.
+- Never silently swallow exceptions. If a failure is expected and recoverable, model it explicitly (a result type, a nullable, or a typed outcome) rather than catching-and-ignoring.
+- Validate inputs at public boundaries; assume internal callers honor the contract.
 
-- Declare variables non-nullable, and check for `null` at entry points.
-- Always use `is null` or `is not null` instead of `== null` or `!= null`.
-- Trust the C# null annotations and don't add null checks when the type system says a value cannot be null.
+## Dependency injection
 
-## Data Access Patterns
+- Constructor injection only; register services in `Program.cs`. No service-locator pattern and no static singletons for application services.
+- Add an interface only for a seam you actually substitute (see the Audible boundary in `src/backend/AGENTS.md`). Don't add an interface per class by reflex.
 
-- Guide the implementation of a data access layer using Entity Framework Core.
-- Explain different options (SQL Server, SQLite, In-Memory) for development and production.
-- Demonstrate repository pattern implementation and when it's beneficial.
-- Show how to implement database migrations and data seeding.
-- Explain efficient query patterns to avoid common performance issues.
+## Comments
 
-## Authentication and Authorization
-
-- Guide users through implementing authentication using JWT Bearer tokens.
-- Explain OAuth 2.0 and OpenID Connect concepts as they relate to ASP.NET Core.
-- Show how to implement role-based and policy-based authorization.
-- Demonstrate integration with Microsoft Entra ID (formerly Azure AD).
-- Explain how to secure both controller-based and Minimal APIs consistently.
-
-## Validation and Error Handling
-
-- Guide the implementation of model validation using data annotations and FluentValidation.
-- Explain the validation pipeline and how to customize validation responses.
-- Demonstrate a global exception handling strategy using middleware.
-- Show how to create consistent error responses across the API.
-- Explain problem details (RFC 9457) implementation for standardized error responses.
-
-## API Versioning and Documentation
-
-- Guide users through implementing and explaining API versioning strategies.
-- Demonstrate Swagger/OpenAPI implementation with proper documentation.
-- Show how to document endpoints, parameters, responses, and authentication.
-- Explain versioning in both controller-based and Minimal APIs.
-- Guide users on creating meaningful API documentation that helps consumers.
-
-## Logging and Monitoring
-
-- Guide the implementation of structured logging using Serilog or other providers.
-- Explain the logging levels and when to use each.
-- Demonstrate integration with Application Insights for telemetry collection.
-- Show how to implement custom telemetry and correlation IDs for request tracking.
-- Explain how to monitor API performance, errors, and usage patterns.
-
-## Testing
-
-- Always include test cases for critical paths of the application.
-- Guide users through creating unit tests.
-- Do not emit "Act", "Arrange" or "Assert" comments.
-- Copy existing style in nearby files for test method names and capitalization.
-- Explain integration testing approaches for API endpoints.
-- Demonstrate how to mock dependencies for effective testing.
-- Show how to test authentication and authorization logic.
-- Explain test-driven development principles as applied to API development.
-
-## Performance Optimization
-
-- Guide users on implementing caching strategies (in-memory, distributed, response caching).
-- Explain asynchronous programming patterns and why they matter for API performance.
-- Demonstrate pagination, filtering, and sorting for large data sets.
-- Show how to implement compression and other performance optimizations.
-- Explain how to measure and benchmark API performance.
-
-## Deployment and DevOps
-
-- Guide users through containerizing their API using .NET's built-in container support (`dotnet publish --os linux --arch x64 -p:PublishProfile=DefaultContainer`).
-- Explain the differences between manual Dockerfile creation and .NET's container publishing features.
-- Explain CI/CD pipelines for NET applications.
-- Demonstrate deployment to Azure App Service, Azure Container Apps, or other hosting options.
-- Show how to implement health checks and readiness probes.
-- Explain environment-specific configurations for different deployment stages.
+- Comment the *why*, not the *what*. Don't narrate code that already reads clearly.

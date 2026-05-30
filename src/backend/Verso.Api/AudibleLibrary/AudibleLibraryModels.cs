@@ -2,7 +2,7 @@ namespace Verso.Api;
 
 public interface IAudibleLibrarySource
 {
-    Task<IReadOnlyList<ImportedAudibleItem>> GetLibraryAsync(CancellationToken cancellationToken);
+  Task<IReadOnlyList<ImportedAudibleItem>> GetLibraryAsync(CancellationToken cancellationToken);
 }
 
 public sealed record ImportedAudibleItem(
