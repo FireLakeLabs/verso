@@ -27,7 +27,7 @@ public sealed class ApiContractTests
         ]);
 
     using var client = application.CreateClient();
-    var importResponse = await client.PostAsync("/api/audible-library/imports", content: null);
+    var importResponse = await client.PostAsync("/api/library/refresh-jobs", content: null);
 
     Assert.Equal(HttpStatusCode.OK, importResponse.StatusCode);
 
@@ -44,8 +44,52 @@ public sealed class ApiContractTests
     Assert.True(item.ContainsKey("runtimeMinutes"));
     Assert.True(item.ContainsKey("percentComplete"));
     Assert.True(item.ContainsKey("rawAudiblePayload"));
+    Assert.True(item.ContainsKey("isNoLongerPresent"));
+    Assert.True(item.ContainsKey("hasSnapshots"));
     Assert.True(item.ContainsKey("coverImages"));
     Assert.False(item.ContainsKey("contributors"));
+  }
+
+  [Fact]
+  public async Task RefreshStatusEndpointReturnsExplicitCamelCaseDtoContract()
+  {
+    await using var application = new ContractApplicationFactory(
+        [
+            new ImportedAudibleItem(
+                "B00TEST123",
+                "Project Hail Mary",
+                ["Andy Weir"],
+                ["Ray Porter"],
+                973,
+                100,
+                "{\"asin\":\"B00TEST123\"}")
+        ]);
+
+    using var client = application.CreateClient();
+    var refreshResponse = await client.PostAsync("/api/library/refresh-jobs", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+
+    var body = await client.GetStringAsync("/api/library/refresh-status");
+    var json = JsonNode.Parse(body)!.AsObject();
+    var recentJobs = json["recentJobs"]!.AsArray();
+    var job = recentJobs.Single()!.AsObject();
+    var phases = job["phases"]!.AsArray();
+    var phase = phases[0]!.AsObject();
+
+    Assert.True(json.ContainsKey("activeJobs"));
+    Assert.True(json.ContainsKey("recentJobs"));
+    Assert.True(job.ContainsKey("phaseSummary"));
+    Assert.True(job.ContainsKey("startedAtUtc"));
+    Assert.True(job.ContainsKey("completedAtUtc"));
+    Assert.True(job.ContainsKey("observedItemCount"));
+    Assert.True(job.ContainsKey("importedItemCount"));
+    Assert.True(job.ContainsKey("retainedNoLongerPresentItemCount"));
+    Assert.True(job.ContainsKey("snapshotObservationCount"));
+    Assert.True(job.ContainsKey("errors"));
+    Assert.True(phase.ContainsKey("name"));
+    Assert.True(phase.ContainsKey("status"));
+    Assert.True(phase.ContainsKey("summary"));
   }
 
   [Fact]
@@ -86,6 +130,29 @@ public sealed class ApiContractTests
 
     Assert.Equal("audible-library-import-failed", json["code"]!.GetValue<string>());
     Assert.Equal("Audible Library import failed. Re-authenticate and try again.", json["message"]!.GetValue<string>());
+  }
+
+  [Fact]
+  public async Task RefreshJobRecordsTypedOperationErrorsWithTechnicalDetails()
+  {
+    await using var application = new ContractApplicationFactory([]);
+    application.SetLibrarySource(new MissingAuthenticationLibrarySource());
+
+    using var client = application.CreateClient();
+    var response = await client.PostAsync("/api/library/refresh-jobs", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+    var job = json["job"]!.AsObject();
+    var error = job["errors"]!.AsArray().Single()!.AsObject();
+
+    Assert.Equal("failed", job["status"]!.GetValue<string>());
+    Assert.Equal("audible-library-authentication-required", error["code"]!.GetValue<string>());
+    Assert.Equal("Authenticate with Audible before refreshing the library.", error["message"]!.GetValue<string>());
+    Assert.Equal("authenticate", error["phase"]!.GetValue<string>());
+    Assert.True(error.ContainsKey("technicalDetails"));
   }
 
   [Fact]
@@ -213,23 +280,19 @@ public sealed class ApiContractTests
     {
       base.Dispose(disposing);
 
-      if (disposing && File.Exists(databasePath))
+      if (disposing)
       {
-        File.Delete(databasePath);
-      }
-
-      if (disposing && Directory.Exists(dataDirectory))
-      {
-        Directory.Delete(dataDirectory, recursive: true);
+        TryDeleteSqliteArtifacts(databasePath);
+        TryDeleteDirectory(dataDirectory);
       }
     }
   }
 
   private sealed class MutableAudibleLibrarySource(IReadOnlyList<ImportedAudibleItem> items) : IAudibleLibrarySource
   {
-    public Task<IReadOnlyList<ImportedAudibleItem>> GetLibraryAsync(CancellationToken cancellationToken)
+    public Task<AudibleLibraryFetchResult> RefreshLibraryAsync(CancellationToken cancellationToken)
     {
-      return Task.FromResult(items);
+      return Task.FromResult(AudibleLibraryFetchResult.Succeeded(items));
     }
   }
 
@@ -247,9 +310,91 @@ public sealed class ApiContractTests
 
   private sealed class MissingAuthenticationLibrarySource : IAudibleLibrarySource
   {
-    public Task<IReadOnlyList<ImportedAudibleItem>> GetLibraryAsync(CancellationToken cancellationToken)
+    public Task<AudibleLibraryFetchResult> RefreshLibraryAsync(CancellationToken cancellationToken)
     {
-      throw new InvalidOperationException("Audible authentication is required before importing the Audible Library.");
+      return Task.FromResult(
+          AudibleLibraryFetchResult.Failed(
+              [
+                  new LibraryOperationError(
+                      "audible-library-authentication-required",
+                      "Authenticate with Audible before refreshing the library.",
+                      "The local Audible identity file is missing or no longer valid.",
+                      "authenticate")
+              ]));
+    }
+  }
+
+  private static void TryDeleteSqliteArtifacts(string databasePath)
+  {
+    foreach (var path in new[] { databasePath, $"{databasePath}-wal", $"{databasePath}-shm" })
+    {
+      TryDeleteFile(path);
+    }
+  }
+
+  private static void TryDeleteDirectory(string path)
+  {
+    if (!Directory.Exists(path))
+    {
+      return;
+    }
+
+    for (var attempt = 0; attempt < 5; attempt++)
+    {
+      try
+      {
+        Directory.Delete(path, recursive: true);
+        return;
+      }
+      catch (IOException) when (attempt < 4)
+      {
+        Thread.Sleep(100);
+      }
+      catch (UnauthorizedAccessException) when (attempt < 4)
+      {
+        Thread.Sleep(100);
+      }
+      catch (IOException)
+      {
+        return;
+      }
+      catch (UnauthorizedAccessException)
+      {
+        return;
+      }
+    }
+  }
+
+  private static void TryDeleteFile(string path)
+  {
+    if (!File.Exists(path))
+    {
+      return;
+    }
+
+    for (var attempt = 0; attempt < 5; attempt++)
+    {
+      try
+      {
+        File.Delete(path);
+        return;
+      }
+      catch (IOException) when (attempt < 4)
+      {
+        Thread.Sleep(100);
+      }
+      catch (UnauthorizedAccessException) when (attempt < 4)
+      {
+        Thread.Sleep(100);
+      }
+      catch (IOException)
+      {
+        return;
+      }
+      catch (UnauthorizedAccessException)
+      {
+        return;
+      }
     }
   }
 

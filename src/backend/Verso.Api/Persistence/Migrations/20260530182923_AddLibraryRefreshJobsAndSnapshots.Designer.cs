@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Verso.Api;
 
@@ -10,9 +11,11 @@ using Verso.Api;
 namespace Verso.Api.Persistence.Migrations
 {
     [DbContext(typeof(VersoDbContext))]
-    partial class VersoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530182923_AddLibraryRefreshJobsAndSnapshots")]
+    partial class AddLibraryRefreshJobsAndSnapshots
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -67,48 +70,6 @@ namespace Verso.Api.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("AudibleItemContributors", (string)null);
-                });
-
-            modelBuilder.Entity("Verso.Api.AudibleItemCoverImageEntity", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("AudibleItemAsin")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTimeOffset?>("CachedAtUtc")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CachedContentType")
-                        .HasMaxLength(256)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CachedRelativePath")
-                        .HasMaxLength(1024)
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("CachedSizeBytes")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("SourceUrl")
-                        .IsRequired()
-                        .HasMaxLength(2048)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Variant")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AudibleItemAsin", "Variant")
-                        .IsUnique();
-
-                    b.ToTable("AudibleItemCoverImages", (string)null);
                 });
 
             modelBuilder.Entity("Verso.Api.AudibleItemEntity", b =>
@@ -341,15 +302,6 @@ namespace Verso.Api.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Verso.Api.AudibleItemCoverImageEntity", b =>
-                {
-                    b.HasOne("Verso.Api.AudibleItemEntity", null)
-                        .WithMany("CoverImages")
-                        .HasForeignKey("AudibleItemAsin")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Verso.Api.AudibleItemSeriesEntity", b =>
                 {
                     b.HasOne("Verso.Api.AudibleItemEntity", null)
@@ -376,6 +328,7 @@ namespace Verso.Api.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
+
             modelBuilder.Entity("Verso.Api.AudibleItemEntity", b =>
                 {
                     b.Navigation("Contributors");
@@ -383,7 +336,6 @@ namespace Verso.Api.Persistence.Migrations
                     b.Navigation("Series");
 
                     b.Navigation("Snapshots");
-                    b.Navigation("CoverImages");
                 });
 
             modelBuilder.Entity("Verso.Api.LibraryRefreshJobEntity", b =>

@@ -11,7 +11,15 @@ public sealed class AudibleLibraryImportService(
   public async Task<AudibleLibraryImportResponse> ImportAsync(CancellationToken cancellationToken)
   {
     await using var database = await databaseFactory.CreateDbContextAsync(cancellationToken);
-    var importedItems = await source.GetLibraryAsync(cancellationToken);
+    var refreshResult = await source.RefreshLibraryAsync(cancellationToken);
+    if (refreshResult.Status != AudibleLibraryFetchStatus.Succeeded)
+    {
+      throw new InvalidOperationException(
+          refreshResult.Errors.FirstOrDefault()?.Message
+          ?? "Audible Library import failed before a complete fetch could be persisted.");
+    }
+
+    var importedItems = refreshResult.Items;
     var statuses = new List<AudibleLibraryImportStatusDto>();
     var cachedCoverImageCount = 0;
     var importedAsins = importedItems
@@ -146,6 +154,8 @@ public sealed class AudibleLibraryImportService(
                 item.RuntimeMinutes,
                 item.PercentComplete,
                 item.RawAudiblePayload,
+                item.IsNoLongerPresent,
+                false,
                 item.CoverImages
                     .OrderBy(coverImage => coverImage.Variant)
                     .Select(coverImage => new LibraryItemCoverImageDto(

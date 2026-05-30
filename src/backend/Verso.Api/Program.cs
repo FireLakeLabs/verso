@@ -25,6 +25,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IAudibleAssetDownloader, AudibleAssetDownloader>();
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
+builder.Services.AddScoped<LibraryService>();
 builder.Services.AddSingleton<AudibleCoverAssetCacheService>();
 builder.Services.AddScoped<AudibleLibraryImportService>();
 builder.Services.AddScoped<IAudibleLibrarySource, AudibleApiLibrarySource>();
@@ -97,10 +98,36 @@ app.MapPost("/api/audible-library/imports", async (AudibleLibraryImportService s
         statusCode: StatusCodes.Status500InternalServerError);
   }
 });
-app.MapGet("/api/library/items", async (AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+var libraryGroup = app.MapGroup("/api/library");
+libraryGroup.MapPost("/refresh-jobs", async Task<Ok<StartLibraryRefreshResponse>> (LibraryService service, CancellationToken cancellationToken) =>
 {
-  var result = await service.GetLibraryAsync(cancellationToken);
-  return Results.Ok(result);
+  var result = await service.RunRefreshAsync(cancellationToken);
+  return TypedResults.Ok(result);
+});
+libraryGroup.MapGet("/refresh-status", async Task<Ok<LibraryRefreshStatusResponse>> (LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetRefreshStatusAsync(cancellationToken);
+  return TypedResults.Ok(result);
+});
+libraryGroup.MapGet("/overview", async Task<Ok<LibraryOverviewResponse>> (LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetOverviewAsync(cancellationToken);
+  return TypedResults.Ok(result);
+});
+libraryGroup.MapGet("/items", async Task<Ok<LibraryItemsResponse>> (
+    string? search,
+    string? presence,
+    string? completion,
+    LibraryService service,
+    CancellationToken cancellationToken) =>
+{
+  var result = await service.GetLibraryAsync(search, presence, completion, cancellationToken);
+  return TypedResults.Ok(result);
+});
+libraryGroup.MapGet("/items/{asin}", async Task<Results<Ok<LibraryItemDetailResponse>, NotFound>> (string asin, LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetLibraryItemAsync(asin, cancellationToken);
+  return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
 });
 app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>
 {

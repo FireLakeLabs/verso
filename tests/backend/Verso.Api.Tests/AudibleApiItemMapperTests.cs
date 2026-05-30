@@ -34,6 +34,10 @@ public sealed class AudibleApiItemMapperTests
     Assert.Equal(["Narrator One", "Narrator Two"], importedItem.Narrators);
     Assert.Equal(0, importedItem.RuntimeMinutes);
     Assert.Equal(135, importedItem.PercentComplete);
+    Assert.Equal("Sparse metadata fixture for Current Audible Facts edge cases.", importedItem.PublisherSummary);
+    Assert.True(importedItem.HasCompanionPdf);
+    Assert.True(importedItem.IsReturnable is true);
+    Assert.Equal("Wayfarer Files", Assert.Single(importedItem.Series!).Title);
     var coverImage = Assert.Single(importedItem.CoverImages ?? []);
     Assert.Equal("500", coverImage.Variant);
     Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);

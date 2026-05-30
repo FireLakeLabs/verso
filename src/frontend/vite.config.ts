@@ -5,6 +5,10 @@ const frontendPort = Number.parseInt(
   process.env.VERSO_FRONTEND_PORT ?? "5202",
   10,
 );
+const backendPort = Number.parseInt(
+  process.env.VERSO_BACKEND_PORT ?? "7202",
+  10,
+);
 
 export default defineConfig({
   plugins: [react()],
@@ -12,6 +16,9 @@ export default defineConfig({
     host: "127.0.0.1",
     port: frontendPort,
     strictPort: true,
+    proxy: {
+      "/api": `http://127.0.0.1:${backendPort}`,
+    },
   },
   preview: {
     host: "127.0.0.1",
