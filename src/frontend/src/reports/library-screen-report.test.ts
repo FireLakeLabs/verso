@@ -10,7 +10,9 @@ import {
 
 describe("library screen report", () => {
   it("stays in a plain TypeScript module without React or component imports", () => {
-    expectReportTransformModule(new URL("./library-screen-report.ts", import.meta.url));
+    expectReportTransformModule(
+      new URL("./library-screen-report.ts", import.meta.url),
+    );
   });
 
   it("chooses a visible active item and reports retained selection counts", () => {
@@ -22,7 +24,7 @@ describe("library screen report", () => {
         narrators: ["Ray Porter"],
         runtimeMinutes: 973,
         percentComplete: 100,
-        rawAudiblePayload: "{\"asin\":\"B00FIRST123\"}",
+        rawAudiblePayload: '{"asin":"B00FIRST123"}',
         isNoLongerPresent: false,
         hasSnapshots: true,
       },
@@ -33,7 +35,7 @@ describe("library screen report", () => {
         narrators: ["Narrator One"],
         runtimeMinutes: 135,
         percentComplete: 45,
-        rawAudiblePayload: "{\"asin\":\"B00SECOND45\"}",
+        rawAudiblePayload: '{"asin":"B00SECOND45"}',
         isNoLongerPresent: true,
         hasSnapshots: false,
       },

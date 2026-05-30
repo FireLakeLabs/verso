@@ -48,13 +48,17 @@ const completionOptions = [
 export function App() {
   const api = useMemo(() => createLibraryApi(), []);
   const [filters, setFilters] = useState<LibraryFilters>(defaultFilters);
-  const [overview, setOverview] = useState<LibraryOverviewResponse | null>(null);
+  const [overview, setOverview] = useState<LibraryOverviewResponse | null>(
+    null,
+  );
   const [refreshStatus, setRefreshStatus] =
     useState<LibraryRefreshStatusResponse | null>(null);
   const [items, setItems] = useState<readonly LibraryItemDto[]>([]);
   const [selectedAsins, setSelectedAsins] = useState<string[]>([]);
   const [activeAsin, setActiveAsin] = useState<string | null>(null);
-  const [activeItem, setActiveItem] = useState<LibraryItemDetailDto | null>(null);
+  const [activeItem, setActiveItem] = useState<LibraryItemDetailDto | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -77,12 +81,18 @@ export function App() {
         setRefreshStatus(nextRefreshStatus);
         setItems(nextItems.items);
         setSelectedAsins((currentSelection) => {
-          const visibleAsins = new Set(nextItems.items.map((item) => item.asin));
+          const visibleAsins = new Set(
+            nextItems.items.map((item) => item.asin),
+          );
           return currentSelection.filter((asin) => visibleAsins.has(asin));
         });
         setLoadError(null);
       } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "Library data could not be loaded.");
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Library data could not be loaded.",
+        );
       } finally {
         if (showLoading) {
           setIsLoading(false);
@@ -159,7 +169,9 @@ export function App() {
       await loadLibrary(false);
     } catch (error) {
       setLoadError(
-        error instanceof Error ? error.message : "Library refresh could not be started.",
+        error instanceof Error
+          ? error.message
+          : "Library refresh could not be started.",
       );
     } finally {
       setIsRefreshing(false);
@@ -205,12 +217,18 @@ export function App() {
               >
                 Open Library Table
               </a>
-              <span className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-muted-foreground">
-                Findings land in issue #7
-              </span>
-              <span className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-muted-foreground">
-                Reports land in issues #10-15
-              </span>
+              <a
+                href="#library-findings-title"
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Open Findings
+              </a>
+              <a
+                href="#library-reports-title"
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Open Reports
+              </a>
             </div>
           </div>
         </div>
@@ -220,7 +238,10 @@ export function App() {
           disabled={isRefreshing}
           className="min-w-44"
         >
-          <RefreshCcw aria-hidden="true" className={isRefreshing ? "animate-spin" : ""} />
+          <RefreshCcw
+            aria-hidden="true"
+            className={isRefreshing ? "animate-spin" : ""}
+          />
           {isRefreshing ? "Refreshing library" : "Start refresh"}
         </Button>
       </section>
@@ -240,7 +261,10 @@ export function App() {
       <section aria-labelledby="library-overview-title" className="space-y-4">
         <div className="flex items-center gap-2">
           <BookOpen aria-hidden="true" className="size-5 text-primary" />
-          <h2 id="library-overview-title" className="m-0 text-2xl text-foreground">
+          <h2
+            id="library-overview-title"
+            className="m-0 text-2xl text-foreground"
+          >
             Library overview
           </h2>
         </div>
@@ -271,7 +295,10 @@ export function App() {
       <section aria-labelledby="refresh-status-title" className="space-y-4">
         <div className="flex items-center gap-2">
           <RefreshCcw aria-hidden="true" className="size-5 text-primary" />
-          <h2 id="refresh-status-title" className="m-0 text-2xl text-foreground">
+          <h2
+            id="refresh-status-title"
+            className="m-0 text-2xl text-foreground"
+          >
             Refresh status
           </h2>
         </div>
@@ -376,8 +403,8 @@ export function App() {
               </>
             ) : (
               <p>
-                No refresh jobs yet. Authenticate with Audible, then start a local
-                refresh from this screen.
+                No refresh jobs yet. Authenticate with Audible, then start a
+                local refresh from this screen.
               </p>
             )}
           </CardContent>
@@ -402,7 +429,9 @@ export function App() {
                 <span>Search</span>
                 <input
                   value={filters.search}
-                  onChange={(event) => updateFilter("search", event.target.value)}
+                  onChange={(event) =>
+                    updateFilter("search", event.target.value)
+                  }
                   placeholder="Title, contributor, or ASIN"
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
@@ -411,7 +440,9 @@ export function App() {
                 <span>Presence</span>
                 <select
                   value={filters.presence}
-                  onChange={(event) => updateFilter("presence", event.target.value)}
+                  onChange={(event) =>
+                    updateFilter("presence", event.target.value)
+                  }
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 >
                   {presenceOptions.map((option) => (
@@ -425,7 +456,9 @@ export function App() {
                 <span>Completion</span>
                 <select
                   value={filters.completion}
-                  onChange={(event) => updateFilter("completion", event.target.value)}
+                  onChange={(event) =>
+                    updateFilter("completion", event.target.value)
+                  }
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
                 >
                   {completionOptions.map((option) => (
@@ -440,14 +473,18 @@ export function App() {
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-3">
               <p className="text-sm">
-                {screenReport.rows.length} visible items · {screenReport.presentItemCount} present ·{" "}
+                {screenReport.rows.length} visible items ·{" "}
+                {screenReport.presentItemCount} present ·{" "}
                 {screenReport.noLongerPresentItemCount} no longer present
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-semibold text-foreground">
                   {screenReport.selectedCount} selected
                 </span>
-                <Button type="button" disabled={screenReport.selectedCount === 0}>
+                <Button
+                  type="button"
+                  disabled={screenReport.selectedCount === 0}
+                >
                   <Tag aria-hidden="true" />
                   Tag selected items in issue #6
                 </Button>
@@ -504,10 +541,18 @@ export function App() {
                             </div>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 align-top text-sm">{row.authorsLabel}</td>
-                        <td className="px-3 py-2 align-top text-sm">{row.narratorsLabel}</td>
-                        <td className="px-3 py-2 align-top text-sm">{row.runtimeLabel}</td>
-                        <td className="px-3 py-2 align-top text-sm">{row.completionLabel}</td>
+                        <td className="px-3 py-2 align-top text-sm">
+                          {row.authorsLabel}
+                        </td>
+                        <td className="px-3 py-2 align-top text-sm">
+                          {row.narratorsLabel}
+                        </td>
+                        <td className="px-3 py-2 align-top text-sm">
+                          {row.runtimeLabel}
+                        </td>
+                        <td className="px-3 py-2 align-top text-sm">
+                          {row.completionLabel}
+                        </td>
                         <td className="px-3 py-2 align-top text-sm">
                           <span
                             className={
@@ -526,8 +571,8 @@ export function App() {
               </div>
             ) : (
               <p>
-                No library items match the current filters yet. Start a refresh after
-                authenticating with Audible to populate the table.
+                No library items match the current filters yet. Start a refresh
+                after authenticating with Audible to populate the table.
               </p>
             )}
           </CardContent>
@@ -576,12 +621,16 @@ export function App() {
                   <dl className="grid gap-3 md:grid-cols-2">
                     <StatusFact
                       label="Authors"
-                      value={activeItem.currentAudibleFacts.authors.join(", ") || "Unknown"}
+                      value={
+                        activeItem.currentAudibleFacts.authors.join(", ") ||
+                        "Unknown"
+                      }
                     />
                     <StatusFact
                       label="Narrators"
                       value={
-                        activeItem.currentAudibleFacts.narrators.join(", ") || "Unknown"
+                        activeItem.currentAudibleFacts.narrators.join(", ") ||
+                        "Unknown"
                       }
                     />
                     <StatusFact
@@ -597,12 +646,16 @@ export function App() {
                     <StatusFact
                       label="Companion PDF"
                       value={
-                        activeItem.currentAudibleFacts.hasCompanionPdf ? "Available" : "None"
+                        activeItem.currentAudibleFacts.hasCompanionPdf
+                          ? "Available"
+                          : "None"
                       }
                     />
                     <StatusFact
                       label="Returnable"
-                      value={formatReturnable(activeItem.currentAudibleFacts.isReturnable)}
+                      value={formatReturnable(
+                        activeItem.currentAudibleFacts.isReturnable,
+                      )}
                     />
                   </dl>
                   <div className="space-y-2">
@@ -651,8 +704,9 @@ export function App() {
                 </>
               ) : (
                 <p>
-                  Choose an item from the table to inspect Current Audible Facts,
-                  no-longer-present history, and future Verso annotations.
+                  Choose an item from the table to inspect Current Audible
+                  Facts, no-longer-present history, and future Verso
+                  annotations.
                 </p>
               )}
             </CardContent>
@@ -718,14 +772,60 @@ export function App() {
                   </ul>
                 ) : (
                   <p>
-                    No selective snapshots are available yet. Refreshes record safe
-                    observations like completion and presence here.
+                    No selective snapshots are available yet. Refreshes record
+                    safe observations like completion and presence here.
                   </p>
                 )}
               </CardContent>
             </Card>
           </div>
         </div>
+      </section>
+
+      <section aria-labelledby="library-findings-title" className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Activity aria-hidden="true" className="size-5 text-primary" />
+          <h2
+            id="library-findings-title"
+            className="m-0 text-2xl text-foreground"
+          >
+            Findings
+          </h2>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Library findings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              Findings workflows land in issue #7. This entry point is reserved
+              in the shell so Overview can always route here.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section aria-labelledby="library-reports-title" className="space-y-4">
+        <div className="flex items-center gap-2">
+          <FileSearch aria-hidden="true" className="size-5 text-primary" />
+          <h2
+            id="library-reports-title"
+            className="m-0 text-2xl text-foreground"
+          >
+            Reports
+          </h2>
+        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Library reports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              Report surfaces land in issues #10-15. This entry point is
+              reserved in the shell so Overview can always route here.
+            </p>
+          </CardContent>
+        </Card>
       </section>
     </main>
   );

@@ -54,33 +54,33 @@ try {
 
   const browser = await chromium.launch();
 
-    try {
-      const page = await browser.newPage();
-      await page.goto(baseUrl);
+  try {
+    const page = await browser.newPage();
+    await page.goto(baseUrl);
 
-      await page.getByRole("heading", { name: "Verso Library" }).waitFor();
-      assert.equal(
-        await page.getByRole("heading", { name: "Library overview" }).isVisible(),
-        true,
-      );
-      assert.equal(
-        await page.getByRole("heading", { name: "Refresh status" }).isVisible(),
-        true,
-      );
-      assert.equal(
-        await page.getByRole("heading", { name: "Library table" }).isVisible(),
-        true,
-      );
-      assert.equal(
-        await page.getByRole("heading", { name: "Item detail" }).isVisible(),
-        true,
-      );
-      assert.equal(
-        await page.getByRole("button", { name: /start refresh/i }).isVisible(),
-        true,
-      );
-    } finally {
-      await browser.close();
+    await page.getByRole("heading", { name: "Verso Library" }).waitFor();
+    assert.equal(
+      await page.getByRole("heading", { name: "Library overview" }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("heading", { name: "Refresh status" }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("heading", { name: "Library table" }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("heading", { name: "Item detail" }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("button", { name: /start refresh/i }).isVisible(),
+      true,
+    );
+  } finally {
+    await browser.close();
   }
 
   console.log("Verso shell smoke passed");

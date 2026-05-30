@@ -118,16 +118,27 @@ type ErrorPayload = {
 
 export function createLibraryApi(baseUrl = "") {
   return {
-    getOverview: () => requestJson<LibraryOverviewResponse>(`${baseUrl}/api/library/overview`),
-    getRefreshStatus: () => requestJson<LibraryRefreshStatusResponse>(`${baseUrl}/api/library/refresh-status`),
+    getOverview: () =>
+      requestJson<LibraryOverviewResponse>(`${baseUrl}/api/library/overview`),
+    getRefreshStatus: () =>
+      requestJson<LibraryRefreshStatusResponse>(
+        `${baseUrl}/api/library/refresh-status`,
+      ),
     getItems: (filters: LibraryFilters) =>
-      requestJson<LibraryItemsResponse>(`${baseUrl}/api/library/items${buildItemsQuery(filters)}`),
+      requestJson<LibraryItemsResponse>(
+        `${baseUrl}/api/library/items${buildItemsQuery(filters)}`,
+      ),
     getItemDetail: (asin: string) =>
-      requestJson<LibraryItemDetailResponse>(`${baseUrl}/api/library/items/${encodeURIComponent(asin)}`),
+      requestJson<LibraryItemDetailResponse>(
+        `${baseUrl}/api/library/items/${encodeURIComponent(asin)}`,
+      ),
     startRefresh: () =>
-      requestJson<StartLibraryRefreshResponse>(`${baseUrl}/api/library/refresh-jobs`, {
-        method: "POST",
-      }),
+      requestJson<StartLibraryRefreshResponse>(
+        `${baseUrl}/api/library/refresh-jobs`,
+        {
+          method: "POST",
+        },
+      ),
   };
 }
 

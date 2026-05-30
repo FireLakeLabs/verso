@@ -51,10 +51,13 @@ export function createLibraryScreenReport(
     activeAsin:
       source.activeAsin && visibleAsins.has(source.activeAsin)
         ? source.activeAsin
-        : source.items[0]?.asin ?? null,
+        : (source.items[0]?.asin ?? null),
     selectedCount: selectedSet.size,
-    presentItemCount: source.items.filter((item) => !item.isNoLongerPresent).length,
-    noLongerPresentItemCount: source.items.filter((item) => item.isNoLongerPresent).length,
+    presentItemCount: source.items.filter((item) => !item.isNoLongerPresent)
+      .length,
+    noLongerPresentItemCount: source.items.filter(
+      (item) => item.isNoLongerPresent,
+    ).length,
   };
 }
 
