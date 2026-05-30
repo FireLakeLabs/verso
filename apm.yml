@@ -1,0 +1,18 @@
+name: verso
+version: 1.0.0
+description: APM project for verso
+author: IAmMonkeyBoy
+
+targets:
+  - copilot
+
+dependencies:
+  apm:
+    - github/awesome-copilot/instructions/csharp.instructions.md
+    - github/awesome-copilot/instructions/aspnet-rest-apis.instructions.md
+    - github/awesome-copilot/agents/expert-react-frontend-engineer.agent.md
+    - github/awesome-copilot/skills/ef-core
+  mcp: []
+
+includes: auto
+scripts: {}
