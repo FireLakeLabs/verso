@@ -41,26 +41,17 @@ public sealed class AudibleApiLibrarySource(VersoDbContext database) : IAudibleL
       {
         rawPage = await api.GetLibraryAsync(libraryOptions);
       }
-      catch (Exception exception)
+      catch (HttpRequestException exception)
       {
-        return importedItems.Count > 0
-            ? AudibleLibraryFetchResult.PartialFailure(
-                importedItems,
-                [
-                    new LibraryOperationError(
-                        "audible-library-fetch-failed",
-                        "Audible Library refresh stopped early. The last successful library state was preserved.",
-                        $"Audible page {pageNumber} failed with {exception.GetType().Name}.",
-                        "fetch-library")
-                ])
-            : AudibleLibraryFetchResult.Failed(
-                [
-                    new LibraryOperationError(
-                        "audible-library-fetch-failed",
-                        "Audible Library refresh failed before a new library state could be saved.",
-                        $"Audible page {pageNumber} failed with {exception.GetType().Name}.",
-                        "fetch-library")
-                ]);
+        return CreateFetchFailure(importedItems, pageNumber, exception);
+      }
+      catch (IOException exception)
+      {
+        return CreateFetchFailure(importedItems, pageNumber, exception);
+      }
+      catch (InvalidOperationException exception)
+      {
+        return CreateFetchFailure(importedItems, pageNumber, exception);
       }
       var rawItems = rawPage["items"] as JArray;
 
@@ -102,5 +93,30 @@ public sealed class AudibleApiLibrarySource(VersoDbContext database) : IAudibleL
     }
 
     return AudibleLibraryFetchResult.Succeeded(importedItems);
+  }
+
+  private static AudibleLibraryFetchResult CreateFetchFailure(
+      List<ImportedAudibleItem> importedItems,
+      int pageNumber,
+      Exception exception)
+  {
+    return importedItems.Count > 0
+        ? AudibleLibraryFetchResult.PartialFailure(
+            importedItems,
+            [
+                new LibraryOperationError(
+                    "audible-library-fetch-failed",
+                    "Audible Library refresh stopped early. The last successful library state was preserved.",
+                    $"Audible page {pageNumber} failed with {exception.GetType().Name}.",
+                    "fetch-library")
+            ])
+        : AudibleLibraryFetchResult.Failed(
+            [
+                new LibraryOperationError(
+                    "audible-library-fetch-failed",
+                    "Audible Library refresh failed before a new library state could be saved.",
+                    $"Audible page {pageNumber} failed with {exception.GetType().Name}.",
+                    "fetch-library")
+            ]);
   }
 }

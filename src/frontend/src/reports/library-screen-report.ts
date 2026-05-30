@@ -14,7 +14,7 @@ export type LibraryTableRowReport = {
   runtimeLabel: string;
   completionLabel: string;
   presenceLabel: string;
-  isRetained: boolean;
+  isNoLongerPresent: boolean;
   isSelected: boolean;
   hasSnapshots: boolean;
 };
@@ -24,7 +24,7 @@ export type LibraryScreenReport = {
   activeAsin: string | null;
   selectedCount: number;
   presentItemCount: number;
-  retainedItemCount: number;
+  noLongerPresentItemCount: number;
 };
 
 export function createLibraryScreenReport(
@@ -44,7 +44,7 @@ export function createLibraryScreenReport(
       runtimeLabel: formatRuntimeMinutes(item.runtimeMinutes),
       completionLabel: formatCompletion(item.percentComplete),
       presenceLabel: item.isNoLongerPresent ? "No longer present" : "Present",
-      isRetained: item.isNoLongerPresent,
+      isNoLongerPresent: item.isNoLongerPresent,
       isSelected: selectedSet.has(item.asin),
       hasSnapshots: item.hasSnapshots,
     })),
@@ -54,7 +54,7 @@ export function createLibraryScreenReport(
         : source.items[0]?.asin ?? null,
     selectedCount: selectedSet.size,
     presentItemCount: source.items.filter((item) => !item.isNoLongerPresent).length,
-    retainedItemCount: source.items.filter((item) => item.isNoLongerPresent).length,
+    noLongerPresentItemCount: source.items.filter((item) => item.isNoLongerPresent).length,
   };
 }
 

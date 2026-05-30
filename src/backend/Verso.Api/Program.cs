@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Verso.Api;
 
@@ -94,22 +95,23 @@ app.MapPost("/api/audible-library/imports", async (LibraryService service, Cance
         statusCode: StatusCodes.Status500InternalServerError);
   }
 });
-app.MapPost("/api/library/refresh-jobs", async (LibraryService service, CancellationToken cancellationToken) =>
+var libraryGroup = app.MapGroup("/api/library");
+libraryGroup.MapPost("/refresh-jobs", async Task<Ok<StartLibraryRefreshResponse>> (LibraryService service, CancellationToken cancellationToken) =>
 {
   var result = await service.RunRefreshAsync(cancellationToken);
-  return Results.Ok(result);
+  return TypedResults.Ok(result);
 });
-app.MapGet("/api/library/refresh-status", async (LibraryService service, CancellationToken cancellationToken) =>
+libraryGroup.MapGet("/refresh-status", async Task<Ok<LibraryRefreshStatusResponse>> (LibraryService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetRefreshStatusAsync(cancellationToken);
-  return Results.Ok(result);
+  return TypedResults.Ok(result);
 });
-app.MapGet("/api/library/overview", async (LibraryService service, CancellationToken cancellationToken) =>
+libraryGroup.MapGet("/overview", async Task<Ok<LibraryOverviewResponse>> (LibraryService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetOverviewAsync(cancellationToken);
-  return Results.Ok(result);
+  return TypedResults.Ok(result);
 });
-app.MapGet("/api/library/items", async (
+libraryGroup.MapGet("/items", async Task<Ok<LibraryItemsResponse>> (
     string? search,
     string? presence,
     string? completion,
@@ -117,12 +119,12 @@ app.MapGet("/api/library/items", async (
     CancellationToken cancellationToken) =>
 {
   var result = await service.GetLibraryAsync(search, presence, completion, cancellationToken);
-  return Results.Ok(result);
+  return TypedResults.Ok(result);
 });
-app.MapGet("/api/library/items/{asin}", async (string asin, LibraryService service, CancellationToken cancellationToken) =>
+libraryGroup.MapGet("/items/{asin}", async Task<Results<Ok<LibraryItemDetailResponse>, NotFound>> (string asin, LibraryService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetLibraryItemAsync(asin, cancellationToken);
-  return result is null ? Results.NotFound() : Results.Ok(result);
+  return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
 });
 
 app.Run();

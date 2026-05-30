@@ -16,6 +16,7 @@ import {
   type LibraryFilters,
   type LibraryItemDto,
   type LibraryItemDetailDto,
+  type LibraryRefreshJobDto,
   type LibraryOverviewResponse,
   type LibraryRefreshStatusResponse,
 } from "./library-api";
@@ -197,6 +198,20 @@ export function App() {
               A local workspace for inspecting, refreshing, and curating one
               Audible Library.
             </p>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href="#library-table-title"
+                className="inline-flex min-h-10 items-center justify-center rounded-md border border-primary/20 bg-primary/10 px-4 font-semibold text-primary transition-colors hover:bg-primary/15"
+              >
+                Open Library Table
+              </a>
+              <span className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-muted-foreground">
+                Findings land in issue #7
+              </span>
+              <span className="inline-flex min-h-10 items-center justify-center rounded-md border border-border bg-card px-4 font-semibold text-muted-foreground">
+                Reports land in issues #10-15
+              </span>
+            </div>
           </div>
         </div>
         <Button
@@ -336,11 +351,28 @@ export function App() {
                           <p className="text-sm">
                             {error.code} · {error.phase}
                           </p>
+                          {error.technicalDetails ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {error.technicalDetails}
+                            </p>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
                   </div>
                 ) : null}
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <RefreshJobList
+                    title="Active jobs"
+                    emptyMessage="No refresh jobs are currently running."
+                    jobs={refreshStatus?.activeJobs ?? []}
+                  />
+                  <RefreshJobList
+                    title="Recent jobs"
+                    emptyMessage="No completed refresh jobs yet."
+                    jobs={refreshStatus?.recentJobs ?? []}
+                  />
+                </div>
               </>
             ) : (
               <p>
@@ -409,7 +441,7 @@ export function App() {
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-3">
               <p className="text-sm">
                 {screenReport.rows.length} visible items · {screenReport.presentItemCount} present ·{" "}
-                {screenReport.retainedItemCount} retained
+                {screenReport.noLongerPresentItemCount} no longer present
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-sm font-semibold text-foreground">
@@ -479,7 +511,7 @@ export function App() {
                         <td className="px-3 py-2 align-top text-sm">
                           <span
                             className={
-                              row.isRetained
+                              row.isNoLongerPresent
                                 ? "rounded-full bg-accent/15 px-2 py-1 font-semibold text-accent"
                                 : "rounded-full bg-primary/10 px-2 py-1 font-semibold text-primary"
                             }
@@ -620,7 +652,7 @@ export function App() {
               ) : (
                 <p>
                   Choose an item from the table to inspect Current Audible Facts,
-                  retained history, and future Verso annotations.
+                  no-longer-present history, and future Verso annotations.
                 </p>
               )}
             </CardContent>
@@ -745,6 +777,46 @@ function AnnotationPlaceholder({
         {label}
       </p>
       <p className="mt-1 text-sm text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function RefreshJobList({
+  title,
+  emptyMessage,
+  jobs,
+}: {
+  title: string;
+  emptyMessage: string;
+  jobs: readonly LibraryRefreshJobDto[];
+}) {
+  return (
+    <div className="space-y-2">
+      <h3 className="m-0 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      {jobs.length > 0 ? (
+        <ul className="m-0 space-y-2 p-0">
+          {jobs.map((job) => (
+            <li
+              key={job.id}
+              className="list-none rounded-md border border-border bg-background px-3 py-2"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold capitalize text-foreground">
+                  {job.status}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {formatUtc(job.startedAtUtc)}
+                </span>
+              </div>
+              <p className="mt-1 text-sm">{job.phaseSummary}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>{emptyMessage}</p>
+      )}
     </div>
   );
 }

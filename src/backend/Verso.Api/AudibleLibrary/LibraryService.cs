@@ -24,20 +24,7 @@ public sealed class LibraryService(
     database.LibraryRefreshJobs.Add(job);
     await database.SaveChangesAsync(cancellationToken);
 
-    AudibleLibraryFetchResult fetchResult;
-    try
-    {
-      fetchResult = await source.RefreshLibraryAsync(cancellationToken);
-    }
-    catch (Exception exception)
-    {
-      fetchResult = AudibleLibraryFetchResult.Failed(
-          new LibraryOperationError(
-              "audible-library-refresh-unexpected-failure",
-              "Audible Library refresh failed before a new library state could be saved.",
-              $"Unexpected {exception.GetType().Name} while refreshing the library.",
-              "fetch-library"));
-    }
+    var fetchResult = await source.RefreshLibraryAsync(cancellationToken);
 
     fetchPhase.Status = fetchResult.Status switch
     {

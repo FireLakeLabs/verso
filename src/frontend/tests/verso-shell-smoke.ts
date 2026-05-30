@@ -59,10 +59,22 @@ try {
       await page.goto(baseUrl);
 
       await page.getByRole("heading", { name: "Verso Library" }).waitFor();
-      assert.equal(await page.getByText("Library overview").isVisible(), true);
-      assert.equal(await page.getByText("Refresh status").isVisible(), true);
-      assert.equal(await page.getByText("Library table").isVisible(), true);
-      assert.equal(await page.getByText("Item detail").isVisible(), true);
+      assert.equal(
+        await page.getByRole("heading", { name: "Library overview" }).isVisible(),
+        true,
+      );
+      assert.equal(
+        await page.getByRole("heading", { name: "Refresh status" }).isVisible(),
+        true,
+      );
+      assert.equal(
+        await page.getByRole("heading", { name: "Library table" }).isVisible(),
+        true,
+      );
+      assert.equal(
+        await page.getByRole("heading", { name: "Item detail" }).isVisible(),
+        true,
+      );
       assert.equal(
         await page.getByRole("button", { name: /start refresh/i }).isVisible(),
         true,

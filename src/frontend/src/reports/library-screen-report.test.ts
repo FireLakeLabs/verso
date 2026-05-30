@@ -48,7 +48,7 @@ describe("library screen report", () => {
     assert.equal(report.activeAsin, "B00FIRST123");
     assert.equal(report.selectedCount, 1);
     assert.equal(report.presentItemCount, 1);
-    assert.equal(report.retainedItemCount, 1);
+    assert.equal(report.noLongerPresentItemCount, 1);
     assert.deepEqual(report.rows[1], {
       asin: "B00SECOND45",
       title: "The Long Way Home",
@@ -57,7 +57,7 @@ describe("library screen report", () => {
       runtimeLabel: "2h 15m",
       completionLabel: "45% in progress",
       presenceLabel: "No longer present",
-      isRetained: true,
+      isNoLongerPresent: true,
       isSelected: true,
       hasSnapshots: false,
     });
