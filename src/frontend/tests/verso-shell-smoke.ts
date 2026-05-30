@@ -41,10 +41,15 @@ try {
 } finally {
   if (server.pid) {
     server.kill("SIGTERM");
-    await Promise.race([
-      once(server, "exit"),
-      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    const exitResult = await Promise.race([
+      once(server, "exit").then(() => "exited"),
+      new Promise((resolve) => setTimeout(() => resolve("timeout"), 5_000)),
     ]);
+
+    if (exitResult === "timeout") {
+      server.kill("SIGKILL");
+      await once(server, "exit");
+    }
   }
 }
 

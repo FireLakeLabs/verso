@@ -8,14 +8,19 @@ public sealed class AudibleLibraryImportService(IDbContextFactory<VersoDbContext
     {
         await using var database = await databaseFactory.CreateDbContextAsync(cancellationToken);
         var importedItems = await source.GetLibraryAsync(cancellationToken);
+        var importedAsins = importedItems
+            .Select(item => item.Asin)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var existingItems = await database.AudibleItems
+            .Include(item => item.Contributors)
+            .Where(item => importedAsins.Contains(item.Asin))
+            .ToDictionaryAsync(item => item.Asin, StringComparer.Ordinal, cancellationToken);
 
         foreach (var importedItem in importedItems)
         {
-            var existingItem = await database.AudibleItems
-                .Include(item => item.Contributors)
-                .SingleOrDefaultAsync(item => item.Asin == importedItem.Asin, cancellationToken);
-
-            if (existingItem is null)
+            if (!existingItems.TryGetValue(importedItem.Asin, out var existingItem))
             {
                 existingItem = new AudibleItemEntity
                 {
@@ -23,6 +28,7 @@ public sealed class AudibleLibraryImportService(IDbContextFactory<VersoDbContext
                 };
 
                 database.AudibleItems.Add(existingItem);
+                existingItems.Add(importedItem.Asin, existingItem);
             }
 
             existingItem.Title = importedItem.Title;
