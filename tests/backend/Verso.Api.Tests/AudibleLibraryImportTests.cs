@@ -129,13 +129,24 @@ public sealed class AudibleLibraryImportTests
     Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
     Assert.NotNull(coverImage.CachedAsset);
     Assert.Equal("image/jpeg", coverImage.CachedAsset.ContentType);
-    Assert.EndsWith(".jpg", coverImage.CachedAsset.RelativePath, StringComparison.OrdinalIgnoreCase);
     Assert.Equal($"/api/library/items/{item.Asin}/cover-images/500", coverImage.CachedAsset.Url);
     Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
 
     var cachedBytes = await client.GetByteArrayAsync(coverImage.CachedAsset.Url);
 
     Assert.Equal([1, 2, 3], cachedBytes);
+
+    await using var scope = application.Services.CreateAsyncScope();
+    var service = scope.ServiceProvider.GetRequiredService<AudibleLibraryImportService>();
+    var exportReferences = await service.GetCachedCoverAssetReferencesAsync(CancellationToken.None);
+    var exportReference = Assert.Single(exportReferences);
+
+    Assert.Equal(item.Asin, exportReference.Asin);
+    Assert.Equal("500", exportReference.Variant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", exportReference.SourceUrl);
+    Assert.EndsWith(".jpg", exportReference.RelativePath, StringComparison.OrdinalIgnoreCase);
+    Assert.Equal("image/jpeg", exportReference.ContentType);
+    Assert.Equal(3, exportReference.SizeBytes);
   }
 
   [Fact]
@@ -162,6 +173,46 @@ public sealed class AudibleLibraryImportTests
     var status = Assert.Single(importResult.Statuses);
     Assert.Equal("audible-cover-cache-failed", status.Code);
     Assert.Equal("B0EDGE0001", status.Asin);
+    Assert.Equal("500", status.CoverVariant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", status.SourceUrl);
+
+    var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
+
+    Assert.NotNull(library);
+    var item = Assert.Single(library.Items);
+    var coverImage = Assert.Single(item.CoverImages);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
+    Assert.Null(coverImage.CachedAsset);
+    Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
+  }
+
+  [Fact]
+  public async Task ImportReturnsTypedStatusWhenCoverUrlReturnsNonImageContent()
+  {
+    var assetDownloader = new FakeAudibleAssetDownloader(
+        new Dictionary<string, DownloadedAudibleAsset>(StringComparer.Ordinal)
+        {
+          ["https://images.audible.test/B0EDGE0001-500.jpg"] = new("application/pdf", [1, 2, 3], ".pdf")
+        });
+
+    await using var application = new VersoApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(assetDownloader);
+
+    using var client = application.CreateClient();
+
+    var importResponse = await client.PostAsync("/api/audible-library/imports", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, importResponse.StatusCode);
+
+    var importResult = await importResponse.Content.ReadFromJsonAsync<AudibleLibraryImportResponse>();
+
+    Assert.NotNull(importResult);
+    Assert.Equal(0, importResult.CachedCoverImageCount);
+    var status = Assert.Single(importResult.Statuses);
+    Assert.Equal("audible-cover-cache-failed", status.Code);
     Assert.Equal("500", status.CoverVariant);
     Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", status.SourceUrl);
 
