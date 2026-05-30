@@ -21,7 +21,11 @@ export function createReportFixture(
 export function expectReportTransformModule(moduleUrl: URL): void {
   const source = readFileSync(fileURLToPath(moduleUrl), "utf8");
 
-  assert.doesNotMatch(source, /from\s+["']react(?:-dom)?["']/);
-  assert.doesNotMatch(source, /from\s+["'][.]{1,2}\/components\//);
+  assert.doesNotMatch(
+    source,
+    /(?:^|\n)\s*import\s+["']react(?:-dom(?:\/[^"']+)?)?["']/m,
+  );
+  assert.doesNotMatch(source, /from\s+["']react(?:-dom(?:\/[^"']+)?)?["']/);
+  assert.doesNotMatch(source, /from\s+["'](?:\.\.\/)+components\//);
   assert.doesNotMatch(source, /jsx-runtime/);
 }
