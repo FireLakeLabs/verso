@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { chromium } from "@playwright/test";
 
 const frontendPort = Number.parseInt(
@@ -13,7 +14,6 @@ const server = spawn(
   ["./node_modules/vite/bin/vite.js", "--host", "127.0.0.1", "--strictPort"],
   {
     env: { ...process.env, VERSO_FRONTEND_PORT: String(frontendPort) },
-    detached: true,
     stdio: "inherit",
   },
 );
@@ -40,7 +40,11 @@ try {
   console.log("Verso shell smoke passed");
 } finally {
   if (server.pid) {
-    process.kill(-server.pid, "SIGTERM");
+    server.kill("SIGTERM");
+    await Promise.race([
+      once(server, "exit"),
+      new Promise((resolve) => setTimeout(resolve, 5_000)),
+    ]);
   }
 }
 
