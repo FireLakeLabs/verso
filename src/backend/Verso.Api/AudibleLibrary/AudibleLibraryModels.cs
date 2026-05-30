@@ -5,6 +5,8 @@ public interface IAudibleLibrarySource
   Task<IReadOnlyList<ImportedAudibleItem>> GetLibraryAsync(CancellationToken cancellationToken);
 }
 
+public sealed record ImportedAudibleCoverImage(string Variant, string SourceUrl);
+
 public sealed record ImportedAudibleItem(
     string Asin,
     string Title,
@@ -12,11 +14,34 @@ public sealed record ImportedAudibleItem(
     IReadOnlyList<string> Narrators,
     int RuntimeMinutes,
     int PercentComplete,
-    string RawAudiblePayload);
+    string RawAudiblePayload,
+    IReadOnlyList<ImportedAudibleCoverImage>? CoverImages = null);
 
-public sealed record AudibleLibraryImportResponse(int ImportedItemCount);
+public sealed record AudibleLibraryImportResponse(
+    int ImportedItemCount,
+    int CachedCoverImageCount,
+    IReadOnlyList<AudibleLibraryImportStatusDto> Statuses);
+
+public sealed record AudibleLibraryImportStatusDto(
+    string Code,
+    string Message,
+    string Asin,
+    string? CoverVariant,
+    string? SourceUrl);
 
 public sealed record LibraryItemsResponse(IReadOnlyList<LibraryItemDto> Items);
+
+public sealed record CachedAssetDto(
+    string RelativePath,
+    string ContentType,
+    long SizeBytes,
+    DateTimeOffset CachedAtUtc,
+    string Url);
+
+public sealed record LibraryItemCoverImageDto(
+    string Variant,
+    string SourceUrl,
+    CachedAssetDto? CachedAsset);
 
 public sealed record LibraryItemDto(
     string Asin,
@@ -25,4 +50,5 @@ public sealed record LibraryItemDto(
     IReadOnlyList<string> Narrators,
     int RuntimeMinutes,
     int PercentComplete,
-    string RawAudiblePayload);
+    string RawAudiblePayload,
+    IReadOnlyList<LibraryItemCoverImageDto> CoverImages);

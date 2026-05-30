@@ -21,8 +21,10 @@ var dataDirectory = builder.Configuration["VERSO_DATA_DIRECTORY"]
 builder.Services.AddDbContextFactory<VersoDbContext>(options => options.UseSqlite(sqliteConnectionString));
 builder.Services.AddSingleton(new VersoStorageOptions(dataDirectory));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient<IAudibleAssetDownloader, AudibleAssetDownloader>();
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
+builder.Services.AddSingleton<AudibleCoverAssetCacheService>();
 builder.Services.AddScoped<AudibleLibraryImportService>();
 builder.Services.AddScoped<IAudibleLibrarySource, AudibleApiLibrarySource>();
 
@@ -98,6 +100,13 @@ app.MapGet("/api/library/items", async (AudibleLibraryImportService service, Can
 {
   var result = await service.GetLibraryAsync(cancellationToken);
   return Results.Ok(result);
+});
+app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetCachedCoverImageAsync(asin, variant, cancellationToken);
+  return result is null
+      ? Results.NotFound()
+      : Results.File(result.Content, result.ContentType);
 });
 
 app.Run();

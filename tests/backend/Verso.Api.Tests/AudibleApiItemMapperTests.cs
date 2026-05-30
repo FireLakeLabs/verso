@@ -34,6 +34,9 @@ public sealed class AudibleApiItemMapperTests
     Assert.Equal(["Narrator One", "Narrator Two"], importedItem.Narrators);
     Assert.Equal(0, importedItem.RuntimeMinutes);
     Assert.Equal(135, importedItem.PercentComplete);
+    var coverImage = Assert.Single(importedItem.CoverImages ?? []);
+    Assert.Equal("500", coverImage.Variant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
 
     var payload = JObject.Parse(importedItem.RawAudiblePayload);
     Assert.Equal("B0EDGE0001", payload.Value<string>("asin"));

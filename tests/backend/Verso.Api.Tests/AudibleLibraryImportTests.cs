@@ -93,6 +93,89 @@ public sealed class AudibleLibraryImportTests
   }
 
   [Fact]
+  public async Task ImportCachesCoverImagesAndExposesCachedAssetMetadata()
+  {
+    var assetDownloader = new FakeAudibleAssetDownloader(
+        new Dictionary<string, DownloadedAudibleAsset>(StringComparer.Ordinal)
+        {
+          ["https://images.audible.test/B0EDGE0001-500.jpg"] = new("image/jpeg", [1, 2, 3], ".jpg")
+        });
+
+    await using var application = new VersoApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(assetDownloader);
+
+    using var client = application.CreateClient();
+
+    var importResponse = await client.PostAsync("/api/audible-library/imports", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, importResponse.StatusCode);
+
+    var importResult = await importResponse.Content.ReadFromJsonAsync<AudibleLibraryImportResponse>();
+
+    Assert.NotNull(importResult);
+    Assert.Equal(1, importResult.CachedCoverImageCount);
+    Assert.Empty(importResult.Statuses);
+
+    var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
+
+    Assert.NotNull(library);
+    var item = Assert.Single(library.Items);
+    var coverImage = Assert.Single(item.CoverImages);
+
+    Assert.Equal("500", coverImage.Variant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
+    Assert.NotNull(coverImage.CachedAsset);
+    Assert.Equal("image/jpeg", coverImage.CachedAsset.ContentType);
+    Assert.EndsWith(".jpg", coverImage.CachedAsset.RelativePath, StringComparison.OrdinalIgnoreCase);
+    Assert.Equal($"/api/library/items/{item.Asin}/cover-images/500", coverImage.CachedAsset.Url);
+    Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
+
+    var cachedBytes = await client.GetByteArrayAsync(coverImage.CachedAsset.Url);
+
+    Assert.Equal([1, 2, 3], cachedBytes);
+  }
+
+  [Fact]
+  public async Task ImportReturnsTypedStatusWhenCoverCachingFailsButStillPersistsAudibleItem()
+  {
+    var assetDownloader = new FailingAudibleAssetDownloader();
+
+    await using var application = new VersoApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(assetDownloader);
+
+    using var client = application.CreateClient();
+
+    var importResponse = await client.PostAsync("/api/audible-library/imports", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, importResponse.StatusCode);
+
+    var importResult = await importResponse.Content.ReadFromJsonAsync<AudibleLibraryImportResponse>();
+
+    Assert.NotNull(importResult);
+    Assert.Equal(0, importResult.CachedCoverImageCount);
+    var status = Assert.Single(importResult.Statuses);
+    Assert.Equal("audible-cover-cache-failed", status.Code);
+    Assert.Equal("B0EDGE0001", status.Asin);
+    Assert.Equal("500", status.CoverVariant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", status.SourceUrl);
+
+    var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
+
+    Assert.NotNull(library);
+    var item = Assert.Single(library.Items);
+    var coverImage = Assert.Single(item.CoverImages);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
+    Assert.Null(coverImage.CachedAsset);
+    Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
+  }
+
+  [Fact]
   public async Task StartupAppliesEntityFrameworkMigrationsToCleanDatabase()
   {
     await using var application = new VersoApplicationFactory([]);
@@ -180,6 +263,7 @@ public sealed class AudibleLibraryImportTests
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), $"verso-tests-data-{Guid.NewGuid():N}");
     private readonly MutableAudibleLibrarySource source = new(items);
     private IAudibleLoginClient? loginClient;
+    private IAudibleAssetDownloader? assetDownloader;
 
     public void SetImportedItems(IReadOnlyList<ImportedAudibleItem> items)
     {
@@ -191,10 +275,15 @@ public sealed class AudibleLibraryImportTests
       this.loginClient = loginClient;
     }
 
+    public void SetAssetDownloader(IAudibleAssetDownloader assetDownloader)
+    {
+      this.assetDownloader = assetDownloader;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
       builder.UseEnvironment("Testing");
-      builder.UseSetting("VERSO_SQLITE_CONNECTION_STRING", $"Data Source={databasePath}");
+      builder.UseSetting("VERSO_SQLITE_CONNECTION_STRING", $"Data Source={databasePath};Pooling=False");
       builder.UseSetting("VERSO_DATA_DIRECTORY", dataDirectory);
 
       builder.ConfigureServices(services =>
@@ -205,6 +294,12 @@ public sealed class AudibleLibraryImportTests
         {
           services.RemoveAll<IAudibleLoginClient>();
           services.AddSingleton(loginClient);
+        }
+
+        if (assetDownloader is not null)
+        {
+          services.RemoveAll<IAudibleAssetDownloader>();
+          services.AddSingleton(assetDownloader);
         }
       });
     }
@@ -267,6 +362,33 @@ public sealed class AudibleLibraryImportTests
         CancellationToken cancellationToken)
     {
       throw new InvalidOperationException("Synthetic login failure before prompt.");
+    }
+  }
+
+  private sealed class FakeAudibleAssetDownloader(
+      IReadOnlyDictionary<string, DownloadedAudibleAsset> assets) : IAudibleAssetDownloader
+  {
+    public List<string> RequestedUrls { get; } = [];
+
+    public Task<DownloadedAudibleAsset> DownloadAsync(string sourceUrl, CancellationToken cancellationToken)
+    {
+      RequestedUrls.Add(sourceUrl);
+
+      return assets.TryGetValue(sourceUrl, out var asset)
+          ? Task.FromResult(asset)
+          : Task.FromException<DownloadedAudibleAsset>(
+              new InvalidOperationException($"Synthetic asset was not configured for {sourceUrl}."));
+    }
+  }
+
+  private sealed class FailingAudibleAssetDownloader : IAudibleAssetDownloader
+  {
+    public List<string> RequestedUrls { get; } = [];
+
+    public Task<DownloadedAudibleAsset> DownloadAsync(string sourceUrl, CancellationToken cancellationToken)
+    {
+      RequestedUrls.Add(sourceUrl);
+      throw new IOException("Synthetic cover download failure.");
     }
   }
 }

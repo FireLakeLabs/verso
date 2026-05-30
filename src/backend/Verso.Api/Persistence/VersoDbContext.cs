@@ -7,6 +7,8 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
 {
   public DbSet<AudibleItemEntity> AudibleItems => Set<AudibleItemEntity>();
 
+  public DbSet<AudibleItemCoverImageEntity> AudibleItemCoverImages => Set<AudibleItemCoverImageEntity>();
+
   public DbSet<AudibleAuthenticationStateEntity> AudibleAuthenticationStates => Set<AudibleAuthenticationStateEntity>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -21,6 +23,10 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
         .WithOne()
         .HasForeignKey(contributor => contributor.AudibleItemAsin)
         .OnDelete(DeleteBehavior.Cascade);
+    audibleItem.HasMany(item => item.CoverImages)
+        .WithOne()
+        .HasForeignKey(coverImage => coverImage.AudibleItemAsin)
+        .OnDelete(DeleteBehavior.Cascade);
 
     var contributor = modelBuilder.Entity<AudibleItemContributorEntity>();
     contributor.ToTable("AudibleItemContributors");
@@ -28,6 +34,15 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
     contributor.Property(item => item.Name).HasMaxLength(256);
     contributor.Property(item => item.Role).HasConversion<string>().HasMaxLength(32);
     contributor.HasIndex(item => new { item.AudibleItemAsin, item.Role, item.Name }).IsUnique();
+
+    var coverImage = modelBuilder.Entity<AudibleItemCoverImageEntity>();
+    coverImage.ToTable("AudibleItemCoverImages");
+    coverImage.HasKey(item => item.Id);
+    coverImage.Property(item => item.Variant).HasMaxLength(64);
+    coverImage.Property(item => item.SourceUrl).HasMaxLength(2048);
+    coverImage.Property(item => item.CachedRelativePath).HasMaxLength(1024);
+    coverImage.Property(item => item.CachedContentType).HasMaxLength(256);
+    coverImage.HasIndex(item => new { item.AudibleItemAsin, item.Variant }).IsUnique();
 
     var authenticationState = modelBuilder.Entity<AudibleAuthenticationStateEntity>();
     authenticationState.ToTable("AudibleAuthenticationStates");
@@ -50,6 +65,8 @@ public sealed class AudibleItemEntity
   public string RawAudiblePayload { get; set; } = string.Empty;
 
   public List<AudibleItemContributorEntity> Contributors { get; } = [];
+
+  public List<AudibleItemCoverImageEntity> CoverImages { get; } = [];
 }
 
 public sealed class AudibleItemContributorEntity
@@ -61,6 +78,25 @@ public sealed class AudibleItemContributorEntity
   public AudibleItemContributorRole Role { get; set; }
 
   public string Name { get; set; } = string.Empty;
+}
+
+public sealed class AudibleItemCoverImageEntity
+{
+  public long Id { get; set; }
+
+  public string AudibleItemAsin { get; set; } = string.Empty;
+
+  public string Variant { get; set; } = string.Empty;
+
+  public string SourceUrl { get; set; } = string.Empty;
+
+  public string? CachedRelativePath { get; set; }
+
+  public string? CachedContentType { get; set; }
+
+  public long? CachedSizeBytes { get; set; }
+
+  public DateTimeOffset? CachedAtUtc { get; set; }
 }
 
 public enum AudibleItemContributorRole
