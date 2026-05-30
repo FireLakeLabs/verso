@@ -24,6 +24,9 @@ backend-build: backend-restore
 backend-test: backend-restore
     dotnet test Verso.slnx --no-restore
 
+backend-format: backend-restore
+    dotnet format Verso.slnx --no-restore --verify-no-changes
+
 frontend-build:
     pnpm --dir src/frontend build
 
@@ -49,4 +52,4 @@ audit:
 scaffold-smoke:
     bash tests/scaffold/scaffold-smoke.sh
 
-verify: backend-build backend-test frontend-typecheck frontend-test frontend-lint frontend-format audit frontend-smoke
+verify: backend-build backend-test backend-format frontend-typecheck frontend-test frontend-lint frontend-format audit frontend-smoke
