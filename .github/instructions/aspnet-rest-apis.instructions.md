@@ -1,110 +1,43 @@
 ---
-description: 'Guidelines for building REST APIs with ASP.NET'
-applyTo: '**/*.cs, **/*.json'
+description: 'ASP.NET Core API-layer conventions for the Verso backend (local, single-user).'
+applyTo: 'src/backend/Verso.Api/**/*.cs'
 ---
 
-# ASP.NET REST API Development
+# ASP.NET Core API conventions (Verso)
 
-## Instruction
-- Guide users through building their first REST API using ASP.NET Core 10.
-- Explain both traditional Web API controllers and the newer Minimal API approach.
-- Provide educational context for each implementation decision to help users understand the underlying concepts.
-- Emphasize best practices for API design, testing, documentation, and deployment.
-- Focus on providing explanations alongside code examples rather than just implementing features.
+Verso's backend is a **local, single-user** ASP.NET Core API on `net10.0` serving the Vite/React frontend. Domain rules (the Audible boundary, EF/SQLite, product constraints) live in `src/backend/AGENTS.md`; this file covers the HTTP/API layer only.
 
-## API Design Fundamentals
+## Scope — do NOT add
 
-- Explain REST architectural principles and how they apply to ASP.NET Core APIs.
-- Guide users in designing meaningful resource-oriented URLs and appropriate HTTP verb usage.
-- Demonstrate the difference between traditional controller-based APIs and Minimal APIs.
-- Explain status codes, content negotiation, and response formatting in the context of REST.
-- Help users understand when to choose Controllers vs. Minimal APIs based on project requirements.
+This is not a multi-tenant or public API. Unless a recorded decision in `docs/adr/` changes it, do not introduce:
 
-## Project Setup and Structure
+- Authentication or authorization middleware, ASP.NET Identity, JWT/bearer, OAuth/OIDC, or `[Authorize]`. The only authentication is the external-browser Audible login handled inside the Audible boundary.
+- API versioning, or Swagger/OpenAPI generation (`Swashbuckle`, `NSwag`).
+- Rate-limiting, CORS beyond what local dev requires, or reverse-proxy/deployment concerns — this runs on localhost for one user.
 
-- Guide users through creating a new ASP.NET Core 10 Web API project with the appropriate templates.
-- Explain the purpose of each generated file and folder to build understanding of the project structure.
-- Demonstrate how to organize code using feature folders or domain-driven design principles.
-- Show proper separation of concerns with models, services, and data access layers.
-- Explain the Program.cs and configuration system in ASP.NET Core 10 including environment-specific settings.
+Removing this surface area is intentional. Do not reintroduce it as "best practice."
 
-## Building Controller-Based APIs
+## Endpoints
 
-- Guide the creation of RESTful controllers with proper resource naming and HTTP verb implementation.
-- Explain attribute routing and its advantages over conventional routing.
-- Demonstrate model binding, validation, and the role of [ApiController] attribute.
-- Show how dependency injection works within controllers.
-- Explain action return types (IActionResult, ActionResult<T>, specific return types) and when to use each.
+- Match the existing endpoint style in `Program.cs`. Prefer Minimal APIs for new endpoints, grouped by resource with `MapGroup`. Do not introduce MVC controllers unless the project already uses them.
+- Return `TypedResults` (`Results<Ok<T>, NotFound, ...>`) so response shapes and status codes are explicit and testable.
+- Keep the readiness endpoint at `/health` working.
 
-## Implementing Minimal APIs
+## Contracts
 
-- Guide users through implementing the same endpoints using the Minimal API syntax.
-- Explain the endpoint routing system and how to organize route groups.
-- Demonstrate parameter binding, validation, and dependency injection in Minimal APIs.
-- Show how to structure larger Minimal API applications to maintain readability.
-- Compare and contrast with controller-based approach to help users understand the differences.
+- Define request/response DTOs as records in the API layer. Never serialize EF entities (`VersoDbContext` types) directly over the wire — project to a DTO so the storage shape and the API shape can diverge independently.
+- Keep projections explicit and data-shape preserving (see `src/backend/AGENTS.md`); preserve ASIN identity in responses rather than collapsing distinct Audible Items.
 
-## Data Access Patterns
+## Validation and errors
 
-- Guide the implementation of a data access layer using Entity Framework Core.
-- Explain different options (SQL Server, SQLite, In-Memory) for development and production.
-- Demonstrate repository pattern implementation and when it's beneficial.
-- Show how to implement database migrations and data seeding.
-- Explain efficient query patterns to avoid common performance issues.
+- Validate at the endpoint boundary. Return `ProblemDetails` (via `TypedResults.Problem` or the problem-details service) for error responses, with the correct status code.
+- Do not leak exception messages, stack traces, filesystem paths, or `AudibleApi` internals in responses.
 
-## Authentication and Authorization
+## Configuration
 
-- Guide users through implementing authentication using JWT Bearer tokens.
-- Explain OAuth 2.0 and OpenID Connect concepts as they relate to ASP.NET Core.
-- Show how to implement role-based and policy-based authorization.
-- Demonstrate integration with Microsoft Entra ID (formerly Azure AD).
-- Explain how to secure both controller-based and Minimal APIs consistently.
+- Read configuration and paths from config/environment (e.g. `VERSO_DATA_DIRECTORY`, `VERSO_BACKEND_PORT`). Never hardcode ports, hosts, or filesystem paths.
+- Bind settings with the options pattern (`IOptions<T>`), not by reading `IConfiguration` ad hoc deep inside services.
 
-## Validation and Error Handling
+## Testing
 
-- Guide the implementation of model validation using data annotations and FluentValidation.
-- Explain the validation pipeline and how to customize validation responses.
-- Demonstrate a global exception handling strategy using middleware.
-- Show how to create consistent error responses across the API.
-- Explain problem details (RFC 9457) implementation for standardized error responses.
-
-## API Versioning and Documentation
-
-- Guide users through implementing and explaining API versioning strategies.
-- Demonstrate Swagger/OpenAPI implementation with proper documentation.
-- Show how to document endpoints, parameters, responses, and authentication.
-- Explain versioning in both controller-based and Minimal APIs.
-- Guide users on creating meaningful API documentation that helps consumers.
-
-## Logging and Monitoring
-
-- Guide the implementation of structured logging using Serilog or other providers.
-- Explain the logging levels and when to use each.
-- Demonstrate integration with Application Insights for telemetry collection.
-- Show how to implement custom telemetry and correlation IDs for request tracking.
-- Explain how to monitor API performance, errors, and usage patterns.
-
-## Testing REST APIs
-
-- Guide users through creating unit tests for controllers, Minimal API endpoints, and services.
-- Explain integration testing approaches for API endpoints.
-- Demonstrate how to mock dependencies for effective testing.
-- Show how to test authentication and authorization logic.
-- Explain test-driven development principles as applied to API development.
-
-## Performance Optimization
-
-- Guide users on implementing caching strategies (in-memory, distributed, response caching).
-- Explain asynchronous programming patterns and why they matter for API performance.
-- Demonstrate pagination, filtering, and sorting for large data sets.
-- Show how to implement compression and other performance optimizations.
-- Explain how to measure and benchmark API performance.
-
-## Deployment and DevOps
-
-- Guide users through containerizing their API using .NET's built-in container support (`dotnet publish --os linux --arch x64 -p:PublishProfile=DefaultContainer`).
-- Explain the differences between manual Dockerfile creation and .NET's container publishing features.
-- Explain CI/CD pipelines for ASP.NET Core applications.
-- Demonstrate deployment to Azure App Service, Azure Container Apps, or other hosting options.
-- Show how to implement health checks and readiness probes.
-- Explain environment-specific configurations for different deployment stages.
+- Cover endpoints with the existing xUnit + `WebApplicationFactory<Program>` integration style (see `src/backend/AGENTS.md`), exercising real API contracts rather than unit-testing handlers in isolation.

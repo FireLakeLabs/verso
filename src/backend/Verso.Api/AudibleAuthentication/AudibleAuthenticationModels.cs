@@ -4,11 +4,11 @@ public sealed record VersoStorageOptions(string DataDirectory);
 
 public interface IAudibleLoginClient
 {
-    Task EnsureAuthenticatedAsync(
-        string locale,
-        string identityFilePath,
-        Func<ExternalAudibleLoginPrompt, Task<string>> externalLoginAsync,
-        CancellationToken cancellationToken);
+  Task EnsureAuthenticatedAsync(
+      string locale,
+      string identityFilePath,
+      Func<ExternalAudibleLoginPrompt, Task<string>> externalLoginAsync,
+      CancellationToken cancellationToken);
 }
 
 public sealed record StartAudibleAuthenticationRequest(string Locale);
