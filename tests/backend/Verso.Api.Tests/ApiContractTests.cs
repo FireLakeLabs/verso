@@ -46,6 +46,7 @@ public sealed class ApiContractTests
     Assert.True(item.ContainsKey("rawAudiblePayload"));
     Assert.True(item.ContainsKey("isNoLongerPresent"));
     Assert.True(item.ContainsKey("hasSnapshots"));
+    Assert.True(item.ContainsKey("coverImages"));
     Assert.False(item.ContainsKey("contributors"));
   }
 
@@ -154,12 +155,88 @@ public sealed class ApiContractTests
     Assert.True(error.ContainsKey("technicalDetails"));
   }
 
+  [Fact]
+  public async Task LibraryImportReturnsTypedCoverCachingStatusContract()
+  {
+    await using var application = new ContractApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(new FailingAudibleAssetDownloader());
+
+    using var client = application.CreateClient();
+    var response = await client.PostAsync("/api/audible-library/imports", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+    var status = json["statuses"]!.AsArray().Single()!.AsObject();
+
+    Assert.Equal(1, json["importedItemCount"]!.GetValue<int>());
+    Assert.Equal(0, json["cachedCoverImageCount"]!.GetValue<int>());
+    Assert.Equal("audible-cover-cache-failed", status["code"]!.GetValue<string>());
+    Assert.True(status.ContainsKey("message"));
+    Assert.Equal("B0EDGE0001", status["asin"]!.GetValue<string>());
+    Assert.Equal("500", status["coverVariant"]!.GetValue<string>());
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", status["sourceUrl"]!.GetValue<string>());
+  }
+
+  [Fact]
+  public async Task LibraryItemsEndpointReturnsCachedCoverMetadataForExportReference()
+  {
+    await using var application = new ContractApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(
+        new SuccessfulAudibleAssetDownloader(
+            new("image/jpeg", [1, 2, 3], ".jpg")));
+
+    using var client = application.CreateClient();
+    var importResponse = await client.PostAsync("/api/audible-library/imports", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, importResponse.StatusCode);
+
+    var body = await client.GetStringAsync("/api/library/items");
+    var json = JsonNode.Parse(body)!.AsObject();
+    var item = json["items"]!.AsArray().Single()!.AsObject();
+    var coverImage = item["coverImages"]!.AsArray().Single()!.AsObject();
+    var cachedAsset = coverImage["cachedAsset"]!.AsObject();
+
+    Assert.Equal("500", coverImage["variant"]!.GetValue<string>());
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage["sourceUrl"]!.GetValue<string>());
+    Assert.False(cachedAsset.ContainsKey("relativePath"));
+    Assert.True(cachedAsset.ContainsKey("contentType"));
+    Assert.True(cachedAsset.ContainsKey("sizeBytes"));
+    Assert.True(cachedAsset.ContainsKey("cachedAtUtc"));
+    Assert.True(cachedAsset.ContainsKey("url"));
+  }
+
+  [Fact]
+  public async Task CachedCoverEndpointReturnsProblemDetailsWhenAssetIsMissing()
+  {
+    await using var application = new ContractApplicationFactory([]);
+
+    using var client = application.CreateClient();
+    var response = await client.GetAsync("/api/library/items/B00TEST123/cover-images/500");
+
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+
+    Assert.Equal("Cached cover image not found.", json["title"]!.GetValue<string>());
+    Assert.Equal(404, json["status"]!.GetValue<int>());
+  }
+
   private sealed class ContractApplicationFactory(IReadOnlyList<ImportedAudibleItem> items) : WebApplicationFactory<Program>
   {
     private readonly string databasePath = Path.Combine(Path.GetTempPath(), $"verso-contract-tests-{Guid.NewGuid():N}.db");
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), $"verso-contract-data-{Guid.NewGuid():N}");
     private IAudibleLibrarySource librarySource = new MutableAudibleLibrarySource(items);
     private IAudibleLoginClient? loginClient;
+    private IAudibleAssetDownloader? assetDownloader;
 
     public void SetLoginClient(IAudibleLoginClient loginClient)
     {
@@ -171,10 +248,15 @@ public sealed class ApiContractTests
       this.librarySource = librarySource;
     }
 
+    public void SetAssetDownloader(IAudibleAssetDownloader assetDownloader)
+    {
+      this.assetDownloader = assetDownloader;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
       builder.UseEnvironment("Testing");
-      builder.UseSetting("VERSO_SQLITE_CONNECTION_STRING", $"Data Source={databasePath}");
+      builder.UseSetting("VERSO_SQLITE_CONNECTION_STRING", $"Data Source={databasePath};Pooling=False");
       builder.UseSetting("VERSO_DATA_DIRECTORY", dataDirectory);
       builder.ConfigureServices(services =>
       {
@@ -184,6 +266,12 @@ public sealed class ApiContractTests
         {
           services.RemoveAll<IAudibleLoginClient>();
           services.AddSingleton(loginClient);
+        }
+
+        if (assetDownloader is not null)
+        {
+          services.RemoveAll<IAudibleAssetDownloader>();
+          services.AddSingleton(assetDownloader);
         }
       });
     }
@@ -307,6 +395,22 @@ public sealed class ApiContractTests
       {
         return;
       }
+    }
+  }
+
+  private sealed class FailingAudibleAssetDownloader : IAudibleAssetDownloader
+  {
+    public Task<DownloadedAudibleAsset> DownloadAsync(string sourceUrl, CancellationToken cancellationToken)
+    {
+      throw new InvalidOperationException("Synthetic cover download failure.");
+    }
+  }
+
+  private sealed class SuccessfulAudibleAssetDownloader(DownloadedAudibleAsset asset) : IAudibleAssetDownloader
+  {
+    public Task<DownloadedAudibleAsset> DownloadAsync(string sourceUrl, CancellationToken cancellationToken)
+    {
+      return Task.FromResult(asset);
     }
   }
 }

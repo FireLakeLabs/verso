@@ -38,6 +38,9 @@ public sealed class AudibleApiItemMapperTests
     Assert.True(importedItem.HasCompanionPdf);
     Assert.True(importedItem.IsReturnable is true);
     Assert.Equal("Wayfarer Files", Assert.Single(importedItem.Series!).Title);
+    var coverImage = Assert.Single(importedItem.CoverImages ?? []);
+    Assert.Equal("500", coverImage.Variant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
 
     var payload = JObject.Parse(importedItem.RawAudiblePayload);
     Assert.Equal("B0EDGE0001", payload.Value<string>("asin"));

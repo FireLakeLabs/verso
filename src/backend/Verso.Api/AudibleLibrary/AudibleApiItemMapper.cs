@@ -14,16 +14,21 @@ public static class AudibleApiItemMapper
     var item = rawItem.ToObject<Item>()
         ?? throw new InvalidOperationException("Audible raw item could not be mapped to an AudibleApi item.");
 
-    return Map(item, rawItem.ToString(Formatting.None), rawItem);
+  return Map(item, rawItem.ToString(Formatting.None), rawItem, MapCoverImages(rawItem));
   }
 
   public static ImportedAudibleItem Map(Item item)
   {
     var rawAudiblePayload = JsonConvert.SerializeObject(item);
-    return Map(item, rawAudiblePayload, JObject.Parse(rawAudiblePayload));
+    var rawItem = JObject.Parse(rawAudiblePayload);
+    return Map(item, rawAudiblePayload, rawItem, MapCoverImages(rawItem));
   }
 
-  private static ImportedAudibleItem Map(Item item, string rawAudiblePayload, JObject rawItem)
+  private static ImportedAudibleItem Map(
+      Item item,
+      string rawAudiblePayload,
+      JObject rawItem,
+      IReadOnlyList<ImportedAudibleCoverImage> coverImages)
   {
     ArgumentNullException.ThrowIfNull(item);
     ArgumentNullException.ThrowIfNull(rawItem);
@@ -64,6 +69,23 @@ public static class AudibleApiItemMapper
                         entry.Value<string>("sequence")?.Trim()))
                 .Where(entry => !string.IsNullOrWhiteSpace(entry.Title))
                 .ToArray()
-            : []);
+              : [],
+            coverImages);
+
+          }
+
+          private static IReadOnlyList<ImportedAudibleCoverImage> MapCoverImages(JObject rawItem)
+          {
+          return rawItem["product_images"] is not JObject productImages
+            ? []
+            : productImages.Properties()
+              .Select(property => new ImportedAudibleCoverImage(
+                property.Name.Trim(),
+                property.Value.Type == JTokenType.String
+                  ? property.Value.Value<string>()?.Trim() ?? string.Empty
+                  : string.Empty))
+              .Where(image => !string.IsNullOrWhiteSpace(image.Variant) && !string.IsNullOrWhiteSpace(image.SourceUrl))
+              .Distinct()
+              .ToArray();
   }
 }

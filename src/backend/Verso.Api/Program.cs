@@ -22,9 +22,12 @@ var dataDirectory = builder.Configuration["VERSO_DATA_DIRECTORY"]
 builder.Services.AddDbContextFactory<VersoDbContext>(options => options.UseSqlite(sqliteConnectionString));
 builder.Services.AddSingleton(new VersoStorageOptions(dataDirectory));
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddHttpClient<IAudibleAssetDownloader, AudibleAssetDownloader>();
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
 builder.Services.AddScoped<LibraryService>();
+builder.Services.AddSingleton<AudibleCoverAssetCacheService>();
+builder.Services.AddScoped<AudibleLibraryImportService>();
 builder.Services.AddScoped<IAudibleLibrarySource, AudibleApiLibrarySource>();
 
 var app = builder.Build();
@@ -80,7 +83,7 @@ app.MapDelete("/api/audible-authentication/session", async (AudibleAuthenticatio
   await service.ClearCurrentAsync(cancellationToken);
   return Results.NoContent();
 });
-app.MapPost("/api/audible-library/imports", async (LibraryService service, CancellationToken cancellationToken) =>
+app.MapPost("/api/audible-library/imports", async (AudibleLibraryImportService service, CancellationToken cancellationToken) =>
 {
   try
   {
@@ -125,6 +128,15 @@ libraryGroup.MapGet("/items/{asin}", async Task<Results<Ok<LibraryItemDetailResp
 {
   var result = await service.GetLibraryItemAsync(asin, cancellationToken);
   return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+});
+app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetCachedCoverImageAsync(asin, variant, cancellationToken);
+  return result is null
+      ? TypedResults.Problem(
+          statusCode: StatusCodes.Status404NotFound,
+          title: "Cached cover image not found.")
+      : TypedResults.File(result.Content, result.ContentType);
 });
 
 app.Run();

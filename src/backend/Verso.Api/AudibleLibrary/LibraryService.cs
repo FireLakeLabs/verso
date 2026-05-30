@@ -221,7 +221,7 @@ public sealed class LibraryService(
     var refresh = await RunRefreshAsync(cancellationToken);
     return refresh.Job.Status switch
     {
-      "succeeded" => new AudibleLibraryImportResponse(refresh.Job.ImportedItemCount),
+      "succeeded" => new AudibleLibraryImportResponse(refresh.Job.ImportedItemCount, 0, []),
       _ => throw new InvalidOperationException(refresh.Job.Errors.FirstOrDefault()?.Message ?? "Audible Library import failed.")
     };
   }
