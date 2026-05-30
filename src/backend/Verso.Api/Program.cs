@@ -23,7 +23,7 @@ builder.Services.AddSingleton(new VersoStorageOptions(dataDirectory));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
-builder.Services.AddScoped<AudibleLibraryImportService>();
+builder.Services.AddScoped<LibraryService>();
 builder.Services.AddScoped<IAudibleLibrarySource, AudibleApiLibrarySource>();
 
 var app = builder.Build();
@@ -79,7 +79,7 @@ app.MapDelete("/api/audible-authentication/session", async (AudibleAuthenticatio
   await service.ClearCurrentAsync(cancellationToken);
   return Results.NoContent();
 });
-app.MapPost("/api/audible-library/imports", async (AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+app.MapPost("/api/audible-library/imports", async (LibraryService service, CancellationToken cancellationToken) =>
 {
   try
   {
@@ -94,10 +94,35 @@ app.MapPost("/api/audible-library/imports", async (AudibleLibraryImportService s
         statusCode: StatusCodes.Status500InternalServerError);
   }
 });
-app.MapGet("/api/library/items", async (AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+app.MapPost("/api/library/refresh-jobs", async (LibraryService service, CancellationToken cancellationToken) =>
 {
-  var result = await service.GetLibraryAsync(cancellationToken);
+  var result = await service.RunRefreshAsync(cancellationToken);
   return Results.Ok(result);
+});
+app.MapGet("/api/library/refresh-status", async (LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetRefreshStatusAsync(cancellationToken);
+  return Results.Ok(result);
+});
+app.MapGet("/api/library/overview", async (LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetOverviewAsync(cancellationToken);
+  return Results.Ok(result);
+});
+app.MapGet("/api/library/items", async (
+    string? search,
+    string? presence,
+    string? completion,
+    LibraryService service,
+    CancellationToken cancellationToken) =>
+{
+  var result = await service.GetLibraryAsync(search, presence, completion, cancellationToken);
+  return Results.Ok(result);
+});
+app.MapGet("/api/library/items/{asin}", async (string asin, LibraryService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetLibraryItemAsync(asin, cancellationToken);
+  return result is null ? Results.NotFound() : Results.Ok(result);
 });
 
 app.Run();
