@@ -65,6 +65,7 @@ project.assets.json
 # Node / frontend dependencies and build output
 node_modules/
 .pnpm-store/
+apm_modules/
 dist/
 build/
 .vite/

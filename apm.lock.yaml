@@ -1,0 +1,43 @@
+lockfile_version: '1'
+generated_at: '2026-05-30T14:50:11.130325+00:00'
+apm_version: 0.14.2
+dependencies:
+- repo_url: github/awesome-copilot
+  host: github.com
+  resolved_commit: 9b74459b5ae5aad67781c4a9de1093605d620f23
+  virtual_path: agents/expert-react-frontend-engineer.agent.md
+  is_virtual: true
+  deployed_files:
+  - .github/agents/expert-react-frontend-engineer.agent.md
+  deployed_file_hashes:
+    .github/agents/expert-react-frontend-engineer.agent.md: sha256:e2c4dd071889ecda11cfba30895e153d6cc10193caf125e683634828985159a8
+  content_hash: sha256:ceda91edec8757f149641a6f10c08bf14d2f5771f4d053ef642804ce7088556c
+- repo_url: github/awesome-copilot
+  host: github.com
+  resolved_commit: 9b74459b5ae5aad67781c4a9de1093605d620f23
+  virtual_path: instructions/aspnet-rest-apis.instructions.md
+  is_virtual: true
+  deployed_files:
+  - .github/instructions/aspnet-rest-apis.instructions.md
+  deployed_file_hashes:
+    .github/instructions/aspnet-rest-apis.instructions.md: sha256:adab10c739e705232f92a3cc92b791020e7ec9c417629b2d773ca30e81a67fe2
+  content_hash: sha256:25133a792b4041ca41f21a6ad04326e0c7b1d2787bb9921e8d1a4018155c128c
+- repo_url: github/awesome-copilot
+  host: github.com
+  resolved_commit: 9b74459b5ae5aad67781c4a9de1093605d620f23
+  virtual_path: instructions/csharp.instructions.md
+  is_virtual: true
+  deployed_files:
+  - .github/instructions/csharp.instructions.md
+  deployed_file_hashes:
+    .github/instructions/csharp.instructions.md: sha256:260d67446b88b08f996b4849d55df7e57674d5ff1d80a7cf481660d78c0e3690
+  content_hash: sha256:0dddfb0193514f4fc7eaf879d8c582e06ce1784185a41098b7c34b851c726bf9
+- repo_url: github/awesome-copilot
+  host: github.com
+  resolved_commit: 9b74459b5ae5aad67781c4a9de1093605d620f23
+  virtual_path: skills/ef-core
+  is_virtual: true
+  package_type: claude_skill
+  deployed_files:
+  - .agents/skills/ef-core
+  content_hash: sha256:23f0a7c7e8c050337d67303f0af339da1ab8f0aa6a334f13112c3f85250c329c

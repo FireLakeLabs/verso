@@ -23,3 +23,11 @@ Use the `tdd` skill for implementation work unless the issue explicitly says it 
 ### Definition of Done
 
 Implementation issues must satisfy `docs/agents/definition-of-done.md` before they are considered complete.
+
+### Technology conventions
+
+APM-managed technology guidance lives in `.github/instructions/`, `.github/agents/`, and `.agents/skills/`; treat those as the generic stack layer and do not hand-edit vendored files.
+
+Verso-specific conventions live in `src/backend/AGENTS.md` and `src/frontend/AGENTS.md`.
+
+Nested `AGENTS.md` files take precedence within their subtree, so keep this root file as an index and push stack-specific detail down.
