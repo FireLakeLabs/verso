@@ -17,6 +17,7 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - `docs/agents/issue-tracker.md` defines how to use GitHub Issues.
 - `docs/agents/triage-labels.md` defines the canonical tracker labels.
 - `docs/agents/implementation-guide.md` defines the Solid v1 monorepo, worktree, port, and verification conventions.
+- `docs/agents/export-privacy-guide.md` defines Cached Asset, Archive Export, privacy, and no-PDF-caching boundaries.
 - `docs/agents/development-workflow.md` defines TDD/review usage, parallel worktrees, and issue-derived local ports.
 - `docs/agents/definition-of-done.md` defines when implementation issues are complete.
 
@@ -32,7 +33,6 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 | Data semantics guide | #3 | #5 |
 | Testing guide | #4 | #5 |
 | UI/report guide | #4 | #10, #11, #12, #14, #15 |
-| Export/privacy guide | #9 or #16 | #16 completion |
 
 ## Sensors to add
 
