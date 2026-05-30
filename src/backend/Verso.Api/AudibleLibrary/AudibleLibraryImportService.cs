@@ -157,13 +157,36 @@ public sealed class AudibleLibraryImportService(
                             || coverImage.CachedAtUtc is null
                                 ? null
                                 : new CachedAssetDto(
-                                    coverImage.CachedRelativePath,
                                     coverImage.CachedContentType,
                                     coverImage.CachedSizeBytes.Value,
                                     coverImage.CachedAtUtc.Value,
                                     AudibleCoverAssetCacheService.GetCachedCoverUrl(item.Asin, coverImage.Variant))))
                     .ToArray()))
             .ToArray());
+  }
+
+  public async Task<IReadOnlyList<CachedCoverAssetReference>> GetCachedCoverAssetReferencesAsync(
+      CancellationToken cancellationToken)
+  {
+    await using var database = await databaseFactory.CreateDbContextAsync(cancellationToken);
+    return await database.AudibleItemCoverImages
+        .AsNoTracking()
+        .Where(coverImage =>
+            coverImage.CachedRelativePath != null
+            && coverImage.CachedContentType != null
+            && coverImage.CachedSizeBytes != null
+            && coverImage.CachedAtUtc != null)
+        .OrderBy(coverImage => coverImage.AudibleItemAsin)
+        .ThenBy(coverImage => coverImage.Variant)
+        .Select(coverImage => new CachedCoverAssetReference(
+            coverImage.AudibleItemAsin,
+            coverImage.Variant,
+            coverImage.SourceUrl,
+            coverImage.CachedRelativePath!,
+            coverImage.CachedContentType!,
+            coverImage.CachedSizeBytes!.Value,
+            coverImage.CachedAtUtc!.Value))
+        .ToListAsync(cancellationToken);
   }
 
   public async Task<CachedCoverImageFileResponse?> GetCachedCoverImageAsync(

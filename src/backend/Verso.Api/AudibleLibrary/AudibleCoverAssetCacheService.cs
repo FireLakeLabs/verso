@@ -70,6 +70,7 @@ public sealed class AudibleCoverAssetCacheService(
     try
     {
       var downloadedAsset = await assetDownloader.DownloadAsync(coverImage.SourceUrl, cancellationToken);
+      EnsureImageAsset(downloadedAsset);
       var relativePath = BuildRelativePath(asin, coverImage.Variant, downloadedAsset.FileExtension);
       var absolutePath = GetAbsolutePath(relativePath);
       Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
@@ -88,11 +89,21 @@ public sealed class AudibleCoverAssetCacheService(
           },
           Downloaded: true);
     }
-    catch (Exception exception) when (exception is HttpRequestException or IOException or UnauthorizedAccessException or InvalidOperationException)
+    catch (HttpRequestException exception)
     {
-      throw new AudibleCoverCachingException(
-          $"Cover caching failed for Audible Item '{asin}' variant '{coverImage.Variant}'.",
-          exception);
+      throw CreateCachingException(asin, coverImage, exception);
+    }
+    catch (IOException exception)
+    {
+      throw CreateCachingException(asin, coverImage, exception);
+    }
+    catch (UnauthorizedAccessException exception)
+    {
+      throw CreateCachingException(asin, coverImage, exception);
+    }
+    catch (InvalidOperationException exception)
+    {
+      throw CreateCachingException(asin, coverImage, exception);
     }
   }
 
@@ -145,6 +156,24 @@ public sealed class AudibleCoverAssetCacheService(
   {
     var invalidCharacters = Path.GetInvalidFileNameChars();
     return new string(value.Select(character => invalidCharacters.Contains(character) ? '_' : character).ToArray());
+  }
+
+  private static void EnsureImageAsset(DownloadedAudibleAsset downloadedAsset)
+  {
+    if (!downloadedAsset.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+    {
+      throw new InvalidOperationException($"Cached cover assets must be images, but received '{downloadedAsset.ContentType}'.");
+    }
+  }
+
+  private static AudibleCoverCachingException CreateCachingException(
+      string asin,
+      ImportedAudibleCoverImage coverImage,
+      Exception exception)
+  {
+    return new AudibleCoverCachingException(
+        $"Cover caching failed for Audible Item '{asin}' variant '{coverImage.Variant}'.",
+        exception);
   }
 }
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Verso.Api;
 
@@ -101,12 +102,14 @@ app.MapGet("/api/library/items", async (AudibleLibraryImportService service, Can
   var result = await service.GetLibraryAsync(cancellationToken);
   return Results.Ok(result);
 });
-app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>
+app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetCachedCoverImageAsync(asin, variant, cancellationToken);
   return result is null
-      ? Results.NotFound()
-      : Results.File(result.Content, result.ContentType);
+      ? TypedResults.Problem(
+          statusCode: StatusCodes.Status404NotFound,
+          title: "Cached cover image not found.")
+      : TypedResults.File(result.Content, result.ContentType);
 });
 
 app.Run();

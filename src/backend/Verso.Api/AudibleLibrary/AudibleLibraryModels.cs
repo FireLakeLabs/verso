@@ -32,11 +32,19 @@ public sealed record AudibleLibraryImportStatusDto(
 public sealed record LibraryItemsResponse(IReadOnlyList<LibraryItemDto> Items);
 
 public sealed record CachedAssetDto(
-    string RelativePath,
     string ContentType,
     long SizeBytes,
     DateTimeOffset CachedAtUtc,
     string Url);
+
+public sealed record CachedCoverAssetReference(
+    string Asin,
+    string Variant,
+    string SourceUrl,
+    string RelativePath,
+    string ContentType,
+    long SizeBytes,
+    DateTimeOffset CachedAtUtc);
 
 public sealed record LibraryItemCoverImageDto(
     string Variant,

@@ -139,11 +139,28 @@ public sealed class ApiContractTests
 
     Assert.Equal("500", coverImage["variant"]!.GetValue<string>());
     Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage["sourceUrl"]!.GetValue<string>());
-    Assert.True(cachedAsset.ContainsKey("relativePath"));
+    Assert.False(cachedAsset.ContainsKey("relativePath"));
     Assert.True(cachedAsset.ContainsKey("contentType"));
     Assert.True(cachedAsset.ContainsKey("sizeBytes"));
     Assert.True(cachedAsset.ContainsKey("cachedAtUtc"));
     Assert.True(cachedAsset.ContainsKey("url"));
+  }
+
+  [Fact]
+  public async Task CachedCoverEndpointReturnsProblemDetailsWhenAssetIsMissing()
+  {
+    await using var application = new ContractApplicationFactory([]);
+
+    using var client = application.CreateClient();
+    var response = await client.GetAsync("/api/library/items/B00TEST123/cover-images/500");
+
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+
+    Assert.Equal("Cached cover image not found.", json["title"]!.GetValue<string>());
+    Assert.Equal(404, json["status"]!.GetValue<int>());
   }
 
   private sealed class ContractApplicationFactory(IReadOnlyList<ImportedAudibleItem> items) : WebApplicationFactory<Program>
