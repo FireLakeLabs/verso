@@ -1,0 +1,3 @@
+# No External Enrichments in Solid v1
+
+Solid v1 does not call external enrichment services such as Google Books, Wikidata, weather APIs, ListenNotes, Hardcover, NYT, Anthropic, or Notion. The first release proves the core Audible Library loop with imported Audible Facts, Verso Annotations, Health Findings, Smart Shelves, reports, and exports; local-only derivations from already imported assets may be added when useful.

@@ -1,0 +1,356 @@
+/* =============================================================
+   FIRELAKE LABS — Design System Foundation
+   Colors, type, spacing, shadows, radii, motion
+   ============================================================= */
+
+/* ---------- Fonts ----------
+   Geist Sans  → self-hosted variable font (uploaded /fonts).
+   Geist Mono  → loaded from Google Fonts CDN (no local files uploaded yet —
+                 drop the Geist Mono woff2s into /fonts and add @font-face
+                 declarations to fully self-host).
+*/
+
+/* Geist Sans — variable, upright */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist_wght_.woff2") format("woff2-variations"),
+       url("fonts/Geist_wght_.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Geist Sans — variable, italic */
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-Italic_wght_.woff2") format("woff2-variations"),
+       url("fonts/Geist-Italic_wght_.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Geist Mono — variable, upright */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono%5Bwght%5D.woff2") format("woff2-variations"),
+       url("fonts/GeistMono%5Bwght%5D.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+/* Geist Mono — variable, italic */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-Italic%5Bwght%5D.woff2") format("woff2-variations"),
+       url("fonts/GeistMono-Italic%5Bwght%5D.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ---------- INK (cool slate neutrals, slight blue undertone) ---------- */
+  --ink-950: #0B0E14;
+  --ink-900: #131720;
+  --ink-800: #1E2330;
+  --ink-700: #2D3340;
+  --ink-600: #424A5C;
+  --ink-500: #5B6478;
+  --ink-400: #7A8395;
+  --ink-300: #A8B0BF;
+  --ink-200: #CDD2DD;
+  --ink-150: #DCE0E8;
+  --ink-100: #E5E8EF;
+  --ink-75:  #ECEFF4;
+  --ink-50:  #F2F4F8;
+  --paper:   #FAFBFC;
+  --white:   #FFFFFF;
+
+  /* ---------- EMBER (burnt orange accent) ---------- */
+  --ember-700: #7A2A07;
+  --ember-600: #9A3309;
+  --ember-500: #C2410C;   /* primary accent */
+  --ember-400: #E2541A;
+  --ember-300: #F0825C;
+  --ember-200: #F8C4AC;
+  --ember-100: #FDEAD9;
+  --ember-50:  #FEF6EF;
+
+  /* ---------- FOREGROUND / BACKGROUND semantics ---------- */
+  --fg:        var(--ink-950);
+  --fg-1:      var(--ink-900);  /* primary text */
+  --fg-2:      var(--ink-600);  /* secondary text */
+  --fg-3:      var(--ink-400);  /* tertiary / meta */
+  --fg-4:      var(--ink-300);  /* disabled / hints */
+  --fg-inverse:var(--white);
+
+  --bg:        var(--paper);
+  --bg-1:      var(--white);     /* card / elevated */
+  --bg-2:      var(--ink-50);    /* subtle fill */
+  --bg-3:      var(--ink-100);   /* hover fill */
+  --bg-inverse:var(--ink-950);
+
+  --line-1:    var(--ink-150);   /* hairline borders */
+  --line-2:    var(--ink-200);   /* stronger borders */
+  --line-3:    var(--ink-300);   /* focused / emphatic */
+
+  --accent:    var(--ember-500);
+  --accent-hover: var(--ember-600);
+  --accent-press: var(--ember-700);
+  --accent-soft: var(--ember-100);
+  --accent-fg:   var(--white);
+
+  /* ---------- CHART / DIAGRAM (10 categorical, muted) ---------- */
+  --chart-1:  #C2410C;  /* ember */
+  --chart-2:  #3A6B8C;  /* ocean */
+  --chart-3:  #5C7A55;  /* moss */
+  --chart-4:  #8C4156;  /* wine */
+  --chart-5:  #B58A3E;  /* ochre */
+  --chart-6:  #4F7F7C;  /* teal */
+  --chart-7:  #6B5478;  /* plum */
+  --chart-8:  #5B6478;  /* slate */
+  --chart-9:  #8E6B52;  /* clay */
+  --chart-10: #2D3340;  /* graphite */
+
+  /* Sequential single-hue ramp (for choropleths / heatmaps) */
+  --seq-1: #ECEFF4;
+  --seq-2: #CDD2DD;
+  --seq-3: #A8B0BF;
+  --seq-4: #7A8395;
+  --seq-5: #5B6478;
+  --seq-6: #424A5C;
+  --seq-7: #2D3340;
+
+  /* ---------- STATUS / SEMANTIC ---------- */
+  --positive: #3F7A4F;
+  --positive-soft: #E4EFE7;
+  --negative: #B43A3A;
+  --negative-soft: #F4E2E2;
+  --caution:  #B58A3E;
+  --caution-soft: #F6ECD7;
+  --info:     #3A6B8C;
+  --info-soft: #E2ECF3;
+
+  /* ---------- TYPE ---------- */
+  --font-sans: "Geist", "Söhne", "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: var(--font-sans);
+
+  /* Type scale — Swiss minor third, tight */
+  --t-9:    72px;   /* huge display */
+  --t-8:    56px;
+  --t-7:    44px;
+  --t-6:    34px;
+  --t-5:    26px;
+  --t-4:    20px;
+  --t-3:    16px;   /* body */
+  --t-2:    14px;
+  --t-1:    12px;   /* caption / label */
+  --t-0:    10px;   /* eyebrow */
+
+  /* Line heights */
+  --lh-tight:  1.05;
+  --lh-snug:   1.2;
+  --lh-normal: 1.45;
+  --lh-loose:  1.6;
+
+  /* Tracking */
+  --tr-tight:  -0.02em;
+  --tr-snug:   -0.01em;
+  --tr-normal: 0em;
+  --tr-wide:   0.04em;
+  --tr-eyebrow:0.12em;
+
+  /* Weights */
+  --w-light:   300;
+  --w-regular: 400;
+  --w-medium:  500;
+  --w-semi:    600;
+  --w-bold:    700;
+
+  /* ---------- SPACING (4px base) ---------- */
+  --s-0:  0;
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3:  12px;
+  --s-4:  16px;
+  --s-5:  20px;
+  --s-6:  24px;
+  --s-7:  32px;
+  --s-8:  40px;
+  --s-9:  48px;
+  --s-10: 64px;
+  --s-11: 80px;
+  --s-12: 96px;
+  --s-13: 128px;
+
+  /* ---------- RADII (minimal — Swiss restraint) ---------- */
+  --r-0: 0;
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 6px;
+  --r-pill: 999px;
+
+  /* ---------- SHADOWS (restrained, mostly hairlines + low elevation) ---------- */
+  --shadow-0: none;
+  --shadow-1: 0 1px 0 0 rgb(11 14 20 / 0.04), 0 1px 2px 0 rgb(11 14 20 / 0.04);
+  --shadow-2: 0 1px 0 0 rgb(11 14 20 / 0.05), 0 4px 12px -2px rgb(11 14 20 / 0.06);
+  --shadow-3: 0 2px 4px -1px rgb(11 14 20 / 0.06), 0 12px 24px -6px rgb(11 14 20 / 0.10);
+  --shadow-focus: 0 0 0 3px rgb(194 65 12 / 0.25);
+
+  /* ---------- MOTION ---------- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:       cubic-bezier(0.4, 0, 1, 1);
+  --dur-1: 80ms;
+  --dur-2: 140ms;
+  --dur-3: 220ms;
+  --dur-4: 360ms;
+
+  /* ---------- GRID ---------- */
+  --grid-cols: 12;
+  --grid-gutter: 24px;
+  --grid-margin: 64px;
+  --container-narrow: 720px;
+  --container:        960px;
+  --container-wide:   1200px;
+  --container-full:   1440px;
+}
+
+/* =============================================================
+   Semantic typography classes
+   ============================================================= */
+
+.t-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--t-1);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  line-height: var(--lh-snug);
+}
+
+.t-display, .h-display {
+  font-family: var(--font-display);
+  font-size: var(--t-9);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+
+.t-h1, .h1 {
+  font-family: var(--font-sans);
+  font-size: var(--t-7);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+
+.t-h2, .h2 {
+  font-family: var(--font-sans);
+  font-size: var(--t-6);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-snug);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.t-h3, .h3 {
+  font-family: var(--font-sans);
+  font-size: var(--t-5);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-snug);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.t-h4, .h4 {
+  font-family: var(--font-sans);
+  font-size: var(--t-4);
+  font-weight: var(--w-semi);
+  letter-spacing: var(--tr-snug);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+
+.t-body, p {
+  font-family: var(--font-sans);
+  font-size: var(--t-3);
+  font-weight: var(--w-regular);
+  line-height: var(--lh-normal);
+  color: var(--fg-1);
+}
+
+.t-body-sm {
+  font-family: var(--font-sans);
+  font-size: var(--t-2);
+  font-weight: var(--w-regular);
+  line-height: var(--lh-normal);
+  color: var(--fg-1);
+}
+
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--t-1);
+  font-weight: var(--w-regular);
+  line-height: var(--lh-snug);
+  color: var(--fg-2);
+}
+
+.t-label {
+  font-family: var(--font-mono);
+  font-size: var(--t-1);
+  font-weight: var(--w-medium);
+  letter-spacing: var(--tr-wide);
+  text-transform: uppercase;
+  color: var(--fg-2);
+  line-height: var(--lh-snug);
+}
+
+.t-mono, code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  font-feature-settings: "tnum" 1, "calt" 0;
+}
+
+.t-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* =============================================================
+   Base reset
+   ============================================================= */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  font-size: var(--t-3);
+  line-height: var(--lh-normal);
+  color: var(--fg-1);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, h6 { margin: 0; }
+p { margin: 0; }
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  transition: color var(--dur-2) var(--ease-standard);
+}
+a:hover { color: var(--accent-hover); }
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--line-1);
+  margin: 0;
+}

@@ -1,0 +1,3 @@
+# Delegate Audible Authentication to AudibleApi Flow
+
+Verso delegates Audible authentication to the local flow supported by AudibleApi and stores only the minimum resulting session material needed for refreshes. Verso does not collect or persist the Library Owner's Audible password, does not introduce a proxy authentication service for Solid v1, and treats expired authentication as a local re-authentication event.

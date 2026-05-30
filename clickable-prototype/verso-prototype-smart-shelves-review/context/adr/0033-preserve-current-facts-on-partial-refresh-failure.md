@@ -1,0 +1,3 @@
+# Preserve Current Facts on Partial Refresh Failure
+
+Verso does not replace Current Audible Facts with partial or failed refresh data. A library refresh must complete successfully enough to produce a coherent refreshed library before current facts are updated; partial observations may be recorded only when safe, and the UI should surface the failed or partial Refresh Result while preserving the last successful library state.
