@@ -15,20 +15,7 @@ public sealed class AudibleLibraryImportTests
   public async Task ImportPersistsAudibleItemsAndReturnsCurrentAudibleFacts()
   {
     await using var application = new VersoApplicationFactory(
-        [
-            new ImportedAudibleItem(
-                    "B00TEST123",
-                    "Project Hail Mary",
-                    ["Andy Weir"],
-                    ["Ray Porter"],
-                    973,
-                    100,
-                    "{" +
-                    "\"asin\":\"B00TEST123\"," +
-                    "\"title\":\"Project Hail Mary\"," +
-                    "\"unexpected_field\":\"preserved\"" +
-                    "}")
-        ]);
+        AudibleApiFixtureLibrary.LoadImportedItems("current-audible-facts/asin-identity"));
 
     using var client = application.CreateClient();
 
@@ -39,14 +26,23 @@ public sealed class AudibleLibraryImportTests
     var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
 
     Assert.NotNull(library);
-    var item = Assert.Single(library.Items);
-    Assert.Equal("B00TEST123", item.Asin);
-    Assert.Equal("Project Hail Mary", item.Title);
-    Assert.Equal(["Andy Weir"], item.Authors);
-    Assert.Equal(["Ray Porter"], item.Narrators);
-    Assert.Equal(973, item.RuntimeMinutes);
-    Assert.Equal(100, item.PercentComplete);
-    Assert.Contains("unexpected_field", item.RawAudiblePayload);
+    Assert.Equal(2, library.Items.Count);
+
+    var original = Assert.Single(library.Items, item => item.Asin == "B00TEST123");
+    Assert.Equal("Project Hail Mary", original.Title);
+    Assert.Equal(["Andy Weir"], original.Authors);
+    Assert.Equal(["Ray Porter"], original.Narrators);
+    Assert.Equal(973, original.RuntimeMinutes);
+    Assert.Equal(100, original.PercentComplete);
+    Assert.Contains("unexpected_field", original.RawAudiblePayload);
+
+    var edition = Assert.Single(library.Items, item => item.Asin == "B00TEST124");
+    Assert.Equal("Project Hail Mary", edition.Title);
+    Assert.Equal(["Andy Weir", "Guest Essayist"], edition.Authors);
+    Assert.Equal(["Guest Narrator", "Ray Porter"], edition.Narrators.OrderBy(name => name, StringComparer.Ordinal).ToArray());
+    Assert.Equal(985, edition.RuntimeMinutes);
+    Assert.Equal(42, edition.PercentComplete);
+    Assert.Contains("current_audible_facts", edition.RawAudiblePayload);
   }
 
   [Fact]

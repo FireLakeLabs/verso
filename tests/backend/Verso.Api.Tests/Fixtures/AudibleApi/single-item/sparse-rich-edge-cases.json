@@ -1,0 +1,61 @@
+{
+  "asin": "B0EDGE0001",
+  "title": "The Long Way Home",
+  "authors": [
+    {
+      "name": "Author One"
+    },
+    {
+      "name": "Author Two"
+    },
+    {
+      "name": "Author Two"
+    },
+    {
+      "name": ""
+    }
+  ],
+  "narrators": [
+    {
+      "name": "Narrator One"
+    },
+    {
+      "name": "Narrator Two"
+    }
+  ],
+  "runtime_length_min": 0,
+  "percent_complete": 135,
+  "purchase_date": "2025-02-13T10:15:00Z",
+  "status": "Active",
+  "publisher_summary": "Sparse metadata fixture for Current Audible Facts edge cases.",
+  "pdf_url": "https://cdn.audible.test/companions/B0EDGE0001.pdf",
+  "is_returnable": true,
+  "product_images": {
+    "500": "https://images.audible.test/B0EDGE0001-500.jpg"
+  },
+  "price": {
+    "amount": null,
+    "currency_code": "USD"
+  },
+  "category_ladders": [
+    {
+      "ladder": [
+        {
+          "name": "Science Fiction"
+        },
+        {
+          "name": "Space Opera"
+        }
+      ]
+    }
+  ],
+  "series": [
+    {
+      "title": "Wayfarer Files",
+      "sequence": "2"
+    }
+  ],
+  "unexpected_field": {
+    "preserved": true
+  }
+}
