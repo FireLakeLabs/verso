@@ -143,6 +143,34 @@ describe("narrator affinity report", () => {
       ],
     );
   });
+
+  it("treats invalid multi-narrator purchase dates as undated when sorting samples", () => {
+    const report = createNarratorAffinityReport({
+      items: [
+        createItem({
+          asin: "VALID",
+          authors: ["Author A"],
+          narrators: ["Narrator One", "Narrator Two"],
+          purchaseDate: "2026-03-01",
+          runtimeMinutes: 120,
+          title: "Valid Date",
+        }),
+        createItem({
+          asin: "INVALID",
+          authors: ["Author B"],
+          narrators: ["Narrator One", "Narrator Three"],
+          rawAudiblePayload: JSON.stringify({ purchase_date: "not-a-date" }),
+          runtimeMinutes: 300,
+          title: "Invalid Date",
+        }),
+      ],
+    });
+
+    assert.deepEqual(
+      report.multiNarratorSamples.map((entry) => entry.asin),
+      ["VALID", "INVALID"],
+    );
+  });
 });
 
 function createItem(

@@ -108,17 +108,11 @@ export function createNarratorAffinityReport(
 
   const rankedNarratorsByHours = rankNarrators(narrators, "hours");
   const rankedNarratorsByCount = rankNarrators(narrators, "count");
-  const totalNarratedRuntimeMinutes = [...narrators.values()].reduce(
+  const totalNarratedRuntimeMinutes = rankedNarratorsByHours.reduce(
     (sum, narrator) => sum + narrator.runtimeMinutes,
     0,
   );
-  const topFiveNarratedRuntimeMinutes = [...narrators.values()]
-    .sort(
-      (left, right) =>
-        right.runtimeMinutes - left.runtimeMinutes ||
-        right.count - left.count ||
-        left.narrator.localeCompare(right.narrator),
-    )
+  const topFiveNarratedRuntimeMinutes = rankedNarratorsByHours
     .slice(0, 5)
     .reduce((sum, narrator) => sum + narrator.runtimeMinutes, 0);
 
@@ -235,16 +229,24 @@ function compareMultiNarratorSamples(
   left: MultiNarratorSample,
   right: MultiNarratorSample,
 ): number {
-  const leftDate =
-    left.purchaseDate === null ? 0 : Date.parse(left.purchaseDate);
-  const rightDate =
-    right.purchaseDate === null ? 0 : Date.parse(right.purchaseDate);
+  const leftDate = parsePurchaseDateForSort(left.purchaseDate);
+  const rightDate = parsePurchaseDateForSort(right.purchaseDate);
 
   return (
     rightDate - leftDate ||
     right.runtimeMinutes - left.runtimeMinutes ||
     left.title.localeCompare(right.title)
   );
+}
+
+function parsePurchaseDateForSort(purchaseDate: string | null): number {
+  if (purchaseDate === null) {
+    return 0;
+  }
+
+  const parsedDate = Date.parse(purchaseDate);
+
+  return Number.isNaN(parsedDate) ? 0 : parsedDate;
 }
 
 function readPurchaseDate(item: LibraryItemDto): string | null {
