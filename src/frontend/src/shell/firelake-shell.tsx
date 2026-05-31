@@ -35,6 +35,7 @@ import {
 } from "./visual-parity";
 import {
   AuthorConcentrationPage,
+  CostPerHourPage,
   NarratorAffinityPage,
   ListeningCadencePage,
   ReportsHubPage,
@@ -49,6 +50,7 @@ type AppView =
   | "findings"
   | "report-authors"
   | "report-cadence"
+  | "report-cost"
   | "refresh"
   | "report-genre"
   | "report-keywords"
@@ -150,6 +152,11 @@ const pageMetaByView: Record<AppView, PageMeta> = {
     crumbs: ["Reports", "Listening cadence"],
     eyebrow: "Reports",
     title: "Listening cadence",
+  },
+  "report-cost": {
+    crumbs: ["Reports", "Cost per hour"],
+    eyebrow: "Reports",
+    title: "Cost per hour",
   },
   "report-authors": {
     crumbs: ["Reports", "Author concentration"],
@@ -262,7 +269,7 @@ const sidebarSections: readonly {
       { label: "Narrator affinity", view: "report-narrators" },
       { label: "Runtime distribution", view: "report-runtime" },
       { label: "Subject keywords", view: "report-keywords" },
-      { label: "Cost per hour", view: "reports" },
+      { label: "Cost per hour", view: "report-cost" },
     ],
   },
   {
@@ -509,6 +516,17 @@ export function FirelakeShell({
 
             {currentView === "report-runtime" ? (
               <RuntimeDistributionPage items={items} onNavigate={navigate} />
+            ) : null}
+
+            {currentView === "report-cost" ? (
+              <CostPerHourPage
+                costBasis={
+                  settings?.costBasis ??
+                  createFallbackSettings(effectivePreferences).costBasis
+                }
+                items={items}
+                onNavigate={navigate}
+              />
             ) : null}
 
             {currentView === "report-genre" ? (

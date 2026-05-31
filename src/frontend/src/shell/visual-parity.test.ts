@@ -49,6 +49,7 @@ describe("visual parity shell model", () => {
         "report-cadence",
         "report-authors",
         "report-runtime",
+        "report-cost",
         "report-genre",
         "report-keywords",
         "report-narrators",
@@ -117,6 +118,13 @@ describe("visual parity shell model", () => {
         {
           id: "report-runtime",
           view: "report-runtime",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
+          id: "report-cost",
+          view: "report-cost",
           nav: "topnav",
           overview: "calm",
           libraryView: "rows",

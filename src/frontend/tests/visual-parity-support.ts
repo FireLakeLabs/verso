@@ -20,6 +20,7 @@ import type {
   LibraryOverviewResponse,
   LibraryRefreshJobDto,
   LibraryRefreshStatusResponse,
+  SettingsResponse,
   StartLibraryRefreshResponse,
 } from "../src/library-api";
 import { buildVisualParitySearch } from "../src/shell/visual-parity";
@@ -67,6 +68,7 @@ type FixtureBundle = {
   overview: LibraryOverviewResponse;
   refreshJob: LibraryRefreshJobDto;
   refreshStatus: LibraryRefreshStatusResponse;
+  settings: SettingsResponse;
   startRefresh: StartLibraryRefreshResponse;
 };
 
@@ -178,6 +180,13 @@ const visualScenarios: readonly VisualScenario[] = [
     id: "report-runtime",
     clip: { x: 0, y: 0, width: 1440, height: 980 },
     maxDiffPixelRatio: 0.13,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
+    id: "report-cost",
+    clip: { x: 0, y: 0, width: 1440, height: 1040 },
+    maxDiffPixelRatio: 0.14,
     appMaskSelectors: [".v-brand-sub"],
     prototypeMaskSelectors: [".v-brand-sub"],
   },
@@ -562,6 +571,7 @@ function createFixtureBundle(data: PrototypeVisualData): FixtureBundle {
       activeJobs: [],
       recentJobs: [refreshJob],
     },
+    settings: createVisualSettings(data),
     startRefresh: {
       job: {
         ...refreshJob,
@@ -569,6 +579,52 @@ function createFixtureBundle(data: PrototypeVisualData): FixtureBundle {
         phaseSummary: "Refresh queued with deterministic visual fixture data.",
         status: "running",
       },
+    },
+  };
+}
+
+function createVisualSettings(data: PrototypeVisualData): SettingsResponse {
+  return {
+    archiveExport: {
+      coverImages: "sibling-folder",
+      format: "json-archive",
+      includeRawPayloads: true,
+      restoreSupported: false,
+    },
+    audibleAuthentication: {
+      lastAuthenticatedAtUtc: data.lastRefresh,
+      lastError: null,
+      locale: "us",
+      status: "authenticated",
+    },
+    costBasis: {
+      currencyCode: "USD",
+      defaultBasis: "per-credit-value",
+      perCreditValue: 14.95,
+    },
+    interfacePreferences: {
+      defaultLibraryView: "rows",
+      defaultOverviewVariant: "calm",
+      navChrome: "topnav",
+    },
+    localData: {
+      companionPdfsStatus: "deferred",
+      coverCacheLocation: "visual-parity/cached-assets",
+      coverCacheSizeBytes: 0,
+      databaseLocation: "visual-parity/verso.db",
+      databaseSizeBytes: 0,
+      rawPayloadCount: data.items.length,
+      schemaVersion: "visual-parity",
+    },
+    refresh: {
+      retainNoLongerPresentItems: true,
+      selectiveSnapshotFields: [
+        "percent-complete",
+        "presence",
+        "companion-pdf-available",
+        "is-returnable",
+      ],
+      trigger: "manual",
     },
   };
 }
@@ -666,6 +722,10 @@ async function installFixtureRoutes(
 
   await page.route("**/api/library/refresh-jobs", async (route) => {
     await fulfillJson(route, fixtureBundle.startRefresh);
+  });
+
+  await page.route("**/api/settings", async (route) => {
+    await fulfillJson(route, fixtureBundle.settings);
   });
 }
 
@@ -785,6 +845,10 @@ async function openPrototypeState(
         .getByRole("heading", { name: "Runtime distribution" })
         .waitFor();
       return;
+    case "report-cost":
+      await openPrototypeReportLink(page, "Cost per hour");
+      await page.getByRole("heading", { name: "Cost per hour" }).waitFor();
+      return;
     case "report-genre":
       await openPrototypeReportLink(page, "Genre treemap");
       await page.getByRole("heading", { name: "Genre treemap" }).waitFor();
@@ -854,8 +918,11 @@ async function navigatePrototype(
 async function openPrototypeReportLink(
   page: Page,
   label:
+    | "Author concentration"
+    | "Cost per hour"
     | "Genre treemap"
     | "Listening cadence"
+    | "Narrator affinity"
     | "Runtime distribution"
     | "Subject keywords",
 ): Promise<void> {
