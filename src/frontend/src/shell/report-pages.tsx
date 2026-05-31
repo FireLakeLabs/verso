@@ -171,7 +171,6 @@ export function CostPerHourPage({
     [costBasis, items, selectedBasis],
   );
   const lowestCostPerHour = report.bestValueItems[0]?.costPerHour ?? null;
-  const highestCostPerHour = report.highCostShortList[0]?.costPerHour ?? null;
 
   return (
     <div className="v-stack-md">
@@ -198,9 +197,9 @@ export function CostPerHourPage({
         />
         <ReportStatCard
           detail={
-            highestCostPerHour === null
+            lowestCostPerHour === null
               ? "waiting on cost and runtime"
-              : `highest ${formatCurrency(highestCostPerHour, report.currencyCode)} / h`
+              : "lowest available cost per hour"
           }
           label="Best value"
           value={
@@ -287,15 +286,20 @@ export function CostPerHourPage({
                   }}
                   formatter={(value, name, item) => {
                     const point = item.payload as CostPerHourEntry;
+                    const dataKey = String(name);
 
-                    if (name === "Cost per hour") {
+                    if (dataKey === "costPerHour") {
                       return [
                         `${formatCurrency(Number(value), report.currencyCode)} / h`,
                         point.title,
                       ];
                     }
 
-                    return [`${value} h`, "Runtime"];
+                    if (dataKey === "runtimeHours") {
+                      return [`${formatNumber(Number(value))} h`, "Runtime"];
+                    }
+
+                    return [String(value), dataKey];
                   }}
                 />
                 <Scatter
