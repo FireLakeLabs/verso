@@ -168,6 +168,13 @@ const visualScenarios: readonly VisualScenario[] = [
     prototypeMaskSelectors: [".v-brand-sub"],
   },
   {
+    id: "report-authors",
+    clip: { x: 0, y: 0, width: 1440, height: 1120 },
+    maxDiffPixelRatio: 0.14,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
     id: "report-runtime",
     clip: { x: 0, y: 0, width: 1440, height: 980 },
     maxDiffPixelRatio: 0.13,
@@ -184,6 +191,13 @@ const visualScenarios: readonly VisualScenario[] = [
   {
     id: "report-keywords",
     clip: { x: 0, y: 0, width: 1440, height: 980 },
+    maxDiffPixelRatio: 0.14,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
+    id: "report-narrators",
+    clip: { x: 0, y: 0, width: 1440, height: 1020 },
     maxDiffPixelRatio: 0.14,
     appMaskSelectors: [".v-brand-sub"],
     prototypeMaskSelectors: [".v-brand-sub"],
@@ -759,6 +773,12 @@ async function openPrototypeState(
       await openPrototypeReportLink(page, "Listening cadence");
       await page.getByRole("heading", { name: "Listening cadence" }).waitFor();
       return;
+    case "report-authors":
+      await openPrototypeReportLink(page, "Author concentration");
+      await page
+        .getByRole("heading", { name: "Author concentration" })
+        .waitFor();
+      return;
     case "report-runtime":
       await openPrototypeReportLink(page, "Runtime distribution");
       await page
@@ -772,6 +792,10 @@ async function openPrototypeState(
     case "report-keywords":
       await openPrototypeReportLink(page, "Subject keywords");
       await page.getByRole("heading", { name: "Subject keywords" }).waitFor();
+      return;
+    case "report-narrators":
+      await openPrototypeReportLink(page, "Narrator affinity");
+      await page.getByRole("heading", { name: "Narrator affinity" }).waitFor();
       return;
     case "settings-interface":
       await openPrototypeSettingsInterface(page);

@@ -4,6 +4,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
+  Line,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -11,6 +14,10 @@ import {
   YAxis,
 } from "recharts";
 import type { LibraryItemDto, LibraryRefreshJobDto } from "../library-api";
+import {
+  createAuthorConcentrationReport,
+  type AuthorConcentrationEntry,
+} from "../reports/author-concentration-report";
 import {
   createGenreTreemapReport,
   type GenreTreemapNode,
@@ -20,6 +27,7 @@ import {
   type ListeningCadenceCell,
 } from "../reports/listening-cadence-report";
 import { formatRuntimeMinutes } from "../reports/library-screen-report";
+import { createNarratorAffinityReport } from "../reports/narrator-affinity-report";
 import { createRuntimeDistributionReport } from "../reports/runtime-distribution-report";
 import {
   createSubjectKeywordReport,
@@ -28,9 +36,11 @@ import {
 
 type ReportNavigationView =
   | "findings"
+  | "report-authors"
   | "report-cadence"
   | "report-genre"
   | "report-keywords"
+  | "report-narrators"
   | "report-runtime"
   | "reports";
 
@@ -45,6 +55,16 @@ type ListeningCadencePageProps = {
 };
 
 type RuntimeDistributionPageProps = {
+  items: readonly LibraryItemDto[];
+  onNavigate: (view: ReportNavigationView) => void;
+};
+
+type AuthorConcentrationPageProps = {
+  items: readonly LibraryItemDto[];
+  onNavigate: (view: ReportNavigationView) => void;
+};
+
+type NarratorAffinityPageProps = {
   items: readonly LibraryItemDto[];
   onNavigate: (view: ReportNavigationView) => void;
 };
@@ -78,10 +98,16 @@ export function ReportsHubPage({ onNavigate }: ReportsHubPageProps) {
           view: "report-keywords" as const,
         },
         {
-          body: "Signed-off routes stay visible without inventing unfinished behavior beyond this issue.",
-          label: "Queue",
-          title: "Author and narrator reports",
-          view: "reports" as const,
+          body: "Pareto-style author concentration by hours or count using all Audible Items by default.",
+          label: "Live now",
+          title: "Author concentration",
+          view: "report-authors" as const,
+        },
+        {
+          body: "Narrator rankings, cross-author overlap, and explicit multi-narrator samples without invented history.",
+          label: "Live now",
+          title: "Narrator affinity",
+          view: "report-narrators" as const,
         },
         {
           body: "Cost basis settings and the final view still extend from the shared reports shell.",
@@ -497,6 +523,574 @@ export function RuntimeDistributionPage({
               Report queue
             </button>
           </div>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+export function AuthorConcentrationPage({
+  items,
+  onNavigate,
+}: AuthorConcentrationPageProps) {
+  const [mode, setMode] = useState<"hours" | "count">("hours");
+  const report = useMemo(
+    () => createAuthorConcentrationReport({ items }),
+    [items],
+  );
+  const rankedAuthors =
+    mode === "hours" ? report.rankedByHours : report.rankedByCount;
+  const thresholds =
+    mode === "hours" ? report.thresholdsByHours : report.thresholdsByCount;
+  const topAuthor = rankedAuthors[0] ?? null;
+  const chartData = rankedAuthors.slice(0, 30).map((entry, index) => ({
+    authorLabel: abbreviatePersonName(entry.author),
+    authorName: entry.author,
+    cumulativePercent: roundToOne(entry.cumulativeShare * 100),
+    fill: getRankColor(index),
+    value: mode === "hours" ? entry.hours : entry.count,
+  }));
+  const leadingBarValue = chartData[0]?.value ?? 1;
+
+  if (rankedAuthors.length === 0) {
+    return (
+      <ReportEmptyState message="No imported author facts are available yet." />
+    );
+  }
+
+  return (
+    <div className="v-stack-md">
+      <div className="v-metric-grid v-metric-grid-4">
+        <ReportStatCard
+          accent
+          detail={
+            topAuthor === null
+              ? "waiting on author facts"
+              : `${formatRuntimeMinutes(topAuthor.runtimeMinutes)} · ${topAuthor.count} items`
+          }
+          label={`Top author · by ${mode}`}
+          value={topAuthor?.author ?? "-"}
+        />
+        <ReportStatCard
+          detail={`of library ${mode}`}
+          label="Top 5 authors"
+          value={formatPercent(thresholds.topFiveShare)}
+        />
+        <ReportStatCard
+          detail={`of library ${mode}`}
+          label="Top 10 authors"
+          value={formatPercent(thresholds.topTenShare)}
+        />
+        <ReportStatCard
+          detail={`${formatPercent(Math.max(0, 1 - thresholds.topTenShare))} outside top 10`}
+          label="Long tail authors"
+          value={String(Math.max(report.totalDistinctAuthors - 10, 0))}
+        />
+      </div>
+
+      <article className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">Author concentration · pareto</div>
+            <h2 className="v-card-title">Top authors by {mode}</h2>
+          </div>
+          <div style={{ alignItems: "center", display: "flex", gap: 12 }}>
+            <span className="v-pill is-info">All Audible Items by default</span>
+            <div
+              style={{
+                display: "inline-flex",
+                border: "1px solid var(--line-2)",
+              }}
+            >
+              {(
+                [
+                  ["hours", "By hours"],
+                  ["count", "By count"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="v-btn v-btn-sm"
+                  style={{
+                    background: mode === value ? "var(--ink-950)" : "white",
+                    borderLeft:
+                      value === "hours" ? "none" : "1px solid var(--line-2)",
+                    borderRadius: 0,
+                    color: mode === value ? "white" : "var(--fg-2)",
+                  }}
+                  onClick={() => setMode(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="v-card-body" style={{ height: 380 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart
+              data={chartData}
+              margin={{ bottom: 28, left: 8, right: 16, top: 16 }}
+            >
+              <CartesianGrid stroke="var(--line-1)" vertical={false} />
+              <XAxis
+                dataKey="authorLabel"
+                height={76}
+                interval={0}
+                angle={-28}
+                stroke="var(--fg-3)"
+                textAnchor="end"
+                tick={{ fill: "var(--fg-3)", fontSize: 10 }}
+                tickFormatter={(value: string, index) =>
+                  index % 2 === 0 ? value : ""
+                }
+              />
+              <YAxis
+                yAxisId="left"
+                allowDecimals={mode === "hours"}
+                stroke="var(--fg-3)"
+                tick={{ fill: "var(--fg-3)", fontSize: 10 }}
+              />
+              <YAxis
+                yAxisId="right"
+                domain={[0, 100]}
+                orientation="right"
+                stroke="var(--fg-3)"
+                tick={{ fill: "var(--fg-3)", fontSize: 10 }}
+                tickFormatter={(value: number) => `${value}%`}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--bg-1)",
+                  border: "1px solid var(--line-1)",
+                  borderRadius: 2,
+                  color: "var(--fg-1)",
+                }}
+                formatter={(value, name, item) => {
+                  if (name === "cumulativePercent") {
+                    return [`${value}%`, "Cumulative share"];
+                  }
+
+                  return [
+                    mode === "hours" ? `${value} h` : `${value} items`,
+                    item.payload.authorName,
+                  ];
+                }}
+                labelFormatter={(label, payload) =>
+                  String(payload?.[0]?.payload?.authorName ?? label)
+                }
+              />
+              <Bar dataKey="value" fill="var(--seq-5)" yAxisId="left">
+                {chartData.map((entry) => (
+                  <Cell key={entry.authorName} fill={entry.fill} />
+                ))}
+              </Bar>
+              <Line
+                dataKey="cumulativePercent"
+                dot={{ fill: "var(--chart-10)", r: 2.2 }}
+                stroke="var(--chart-10)"
+                strokeWidth={1.5}
+                type="monotone"
+                yAxisId="right"
+              />
+              <ReferenceLine
+                ifOverflow="extendDomain"
+                label={{
+                  fill: "var(--accent)",
+                  fontSize: 10,
+                  position: "insideTopRight",
+                  value: `50% at ${thresholds.authorsToHalf}`,
+                }}
+                stroke="var(--accent)"
+                strokeDasharray="4 4"
+                y={50}
+                yAxisId="right"
+              />
+              <ReferenceLine
+                ifOverflow="extendDomain"
+                label={{
+                  fill: "var(--chart-4)",
+                  fontSize: 10,
+                  position: "insideBottomRight",
+                  value: `80% at ${thresholds.authorsToEighty}`,
+                }}
+                stroke="var(--chart-4)"
+                strokeDasharray="4 4"
+                y={80}
+                yAxisId="right"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div
+          style={{
+            alignItems: "center",
+            background: "var(--ink-50)",
+            borderTop: "1px solid var(--line-1)",
+            display: "flex",
+            gap: 12,
+            justifyContent: "space-between",
+            padding: "12px 18px",
+          }}
+        >
+          <div className="v-eyebrow">Takeaway</div>
+          <p className="v-body-copy" style={{ margin: 0 }}>
+            <strong>{thresholds.authorsToHalf}</strong> authors carry half your
+            library {mode} and <strong>{thresholds.authorsToEighty}</strong>{" "}
+            carry 80%.
+          </p>
+          <button
+            type="button"
+            className="v-btn v-btn-outline v-btn-sm"
+            onClick={() => onNavigate("report-narrators")}
+          >
+            Narrator affinity
+          </button>
+        </div>
+      </article>
+
+      <article className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">All authors</div>
+            <h2 className="v-card-title">
+              {report.totalDistinctAuthors} authors ranked by {mode}
+            </h2>
+          </div>
+          <span className="v-card-meta">Current Audible Facts only</span>
+        </div>
+        <div
+          className="v-card-body is-tight"
+          style={{ maxHeight: 520, overflow: "auto" }}
+        >
+          <table className="v-table is-compact">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Author</th>
+                <th className="r">Books</th>
+                <th className="r">Hours</th>
+                <th className="r">Share</th>
+                <th>Concentration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankedAuthors.slice(0, 80).map((entry, index) => (
+                <tr key={entry.author}>
+                  <td className="v-mono v-td-mute">
+                    {String(index + 1).padStart(2, "0")}
+                  </td>
+                  <td>{entry.author}</td>
+                  <td className="r v-mono">{entry.count}</td>
+                  <td className="r v-mono">
+                    {formatRuntimeMinutes(entry.runtimeMinutes)}
+                  </td>
+                  <td className="r v-mono">{formatPercent(entry.share)}</td>
+                  <td>
+                    <div className="v-progress is-thin">
+                      <div
+                        className="v-progress-bar"
+                        style={{
+                          background: getRankColor(index),
+                          width: `${Math.max(6, (chartValueForAuthor(entry, mode) / Math.max(leadingBarValue, 1)) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+export function NarratorAffinityPage({
+  items,
+  onNavigate,
+}: NarratorAffinityPageProps) {
+  const [mode, setMode] = useState<"hours" | "count">("hours");
+  const report = useMemo(
+    () => createNarratorAffinityReport({ items }),
+    [items],
+  );
+  const rankedNarrators =
+    mode === "hours"
+      ? report.rankedNarratorsByHours
+      : report.rankedNarratorsByCount;
+  const topNarrator = rankedNarrators[0] ?? null;
+  const maxNarratorValue = Math.max(
+    1,
+    ...rankedNarrators.map((entry) => narratorMetricValue(entry, mode)),
+  );
+
+  if (rankedNarrators.length === 0) {
+    return (
+      <ReportEmptyState message="No imported narrator facts are available yet." />
+    );
+  }
+
+  return (
+    <div className="v-stack-md">
+      <div className="v-metric-grid v-metric-grid-4">
+        <ReportStatCard
+          accent
+          detail={
+            topNarrator === null
+              ? "waiting on narrator facts"
+              : `${formatRuntimeMinutes(topNarrator.runtimeMinutes)} · ${topNarrator.count} items`
+          }
+          label={`Top narrator · by ${mode}`}
+          value={topNarrator?.narrator ?? "-"}
+        />
+        <ReportStatCard
+          detail="of narrated hours"
+          label="Top 5 share"
+          value={formatPercent(report.topFiveHoursShare)}
+        />
+        <ReportStatCard
+          detail="narrators spanning 2+ authors"
+          label="Cross-author voices"
+          value={String(report.multiAuthorNarratorCount)}
+        />
+        <ReportStatCard
+          detail="sample shown below"
+          label="Multi-narrator titles"
+          value={String(report.multiNarratorSamples.length)}
+        />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 24,
+          gridTemplateColumns: "1.05fr 0.95fr",
+        }}
+      >
+        <article className="v-card">
+          <div className="v-card-head">
+            <div>
+              <div className="v-eyebrow">Narrator affinity</div>
+              <h2 className="v-card-title">Voices you keep following</h2>
+            </div>
+            <div
+              style={{
+                display: "inline-flex",
+                border: "1px solid var(--line-2)",
+              }}
+            >
+              {(
+                [
+                  ["hours", "By hours"],
+                  ["count", "By count"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="v-btn v-btn-sm"
+                  style={{
+                    background: mode === value ? "var(--ink-950)" : "white",
+                    borderLeft:
+                      value === "hours" ? "none" : "1px solid var(--line-2)",
+                    borderRadius: 0,
+                    color: mode === value ? "white" : "var(--fg-2)",
+                  }}
+                  onClick={() => setMode(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div
+            className="v-card-body"
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
+            {rankedNarrators.slice(0, 12).map((entry, index) => (
+              <div
+                key={entry.narrator}
+                style={{
+                  alignItems: "center",
+                  display: "grid",
+                  gap: 12,
+                  gridTemplateColumns: "28px minmax(0, 1fr) 70px 72px",
+                }}
+              >
+                <div className="v-mono v-td-mute">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 12,
+                      justifyContent: "space-between",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <strong style={{ fontSize: 13, fontWeight: 500 }}>
+                      {entry.narrator}
+                    </strong>
+                    <span
+                      className="v-mono"
+                      style={{ color: "var(--fg-2)", fontSize: 11 }}
+                    >
+                      {entry.distinctAuthors} authors
+                    </span>
+                  </div>
+                  <div className="v-progress is-thin">
+                    <div
+                      className="v-progress-bar"
+                      style={{
+                        background: getRankColor(index),
+                        width: `${(narratorMetricValue(entry, mode) / maxNarratorValue) * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="r v-mono">
+                  {mode === "hours"
+                    ? `${formatNumber(entry.hours)} h`
+                    : `${entry.count}`}
+                </div>
+                <div className="r v-mono v-td-mute">{entry.count} items</div>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="v-card">
+          <div className="v-card-head">
+            <div>
+              <div className="v-eyebrow">Author overlap matrix</div>
+              <h2 className="v-card-title">Cross-author narrator patterns</h2>
+            </div>
+            <span className="v-pill is-info">All Audible Items by default</span>
+          </div>
+          <div className="v-card-body" style={{ overflowX: "auto" }}>
+            <div
+              style={{
+                alignItems: "stretch",
+                display: "grid",
+                gap: 6,
+                gridTemplateColumns: `140px repeat(${Math.max(report.authorOverlapMatrix.authors.length, 1)}, minmax(68px, 1fr))`,
+              }}
+            >
+              <div />
+              {report.authorOverlapMatrix.authors.map((author) => (
+                <div
+                  key={author}
+                  className="v-eyebrow"
+                  style={{ color: "var(--fg-2)", textAlign: "center" }}
+                >
+                  {author.split(" ").slice(-1)[0]}
+                </div>
+              ))}
+              {report.authorOverlapMatrix.rows.map((row) => (
+                <>
+                  <div
+                    key={`${row.narrator}-label`}
+                    style={{
+                      alignItems: "center",
+                      display: "flex",
+                      fontSize: 12.5,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {row.narrator}
+                  </div>
+                  {row.countsByAuthor.map((count, index) => (
+                    <div
+                      key={`${row.narrator}-${report.authorOverlapMatrix.authors[index]}`}
+                      title={`${row.narrator} × ${report.authorOverlapMatrix.authors[index]} · ${count}`}
+                      style={{
+                        alignItems: "center",
+                        background:
+                          count === 0
+                            ? "var(--ink-50)"
+                            : `rgba(194, 65, 12, ${0.18 + (count / Math.max(report.authorOverlapMatrix.maxCellCount, 1)) * 0.6})`,
+                        border: "1px solid var(--line-1)",
+                        color: count === 0 ? "var(--fg-3)" : "var(--ink-950)",
+                        display: "flex",
+                        fontFamily: "var(--font-mono)",
+                        fontSize: 11,
+                        justifyContent: "center",
+                        minHeight: 42,
+                      }}
+                    >
+                      {count || "—"}
+                    </div>
+                  ))}
+                </>
+              ))}
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <article className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">Multi-narrator sample</div>
+            <h2 className="v-card-title">Books with multiple narrators</h2>
+          </div>
+          <div className="v-card-toolbar">
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onNavigate("report-authors")}
+            >
+              Author concentration
+            </button>
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onNavigate("reports")}
+            >
+              Report queue
+            </button>
+          </div>
+        </div>
+        <div className="v-card-body is-tight">
+          {report.multiNarratorSamples.length > 0 ? (
+            <table className="v-table is-compact">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Narrators</th>
+                  <th className="r">Runtime</th>
+                  <th className="r">Completion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.multiNarratorSamples.map((entry) => (
+                  <tr key={entry.asin}>
+                    <td>{entry.title}</td>
+                    <td>{entry.narrators.join(", ")}</td>
+                    <td className="r v-mono">
+                      {formatRuntimeMinutes(entry.runtimeMinutes)}
+                    </td>
+                    <td className="r v-mono">
+                      {entry.percentComplete > 0
+                        ? `${entry.percentComplete}%`
+                        : "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="v-card-body">
+              <p className="v-empty-inline">
+                No explicit multi-narrator titles are present in the current
+                library yet.
+              </p>
+            </div>
+          )}
         </div>
       </article>
     </div>
@@ -1208,6 +1802,57 @@ function layoutTreemap(
 
 function formatHours(runtimeMinutes: number): string {
   return `${Math.round(runtimeMinutes / 60)} h`;
+}
+
+function chartValueForAuthor(
+  entry: AuthorConcentrationEntry,
+  mode: "hours" | "count",
+): number {
+  return mode === "hours" ? entry.hours : entry.count;
+}
+
+function narratorMetricValue(
+  entry: {
+    count: number;
+    hours: number;
+  },
+  mode: "hours" | "count",
+): number {
+  return mode === "hours" ? entry.hours : entry.count;
+}
+
+function abbreviatePersonName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+
+  if (parts.length === 0) {
+    return name;
+  }
+
+  if (parts.length === 1) {
+    return parts[0] ?? name;
+  }
+
+  return `${parts[0]?.[0] ?? ""}. ${parts[parts.length - 1] ?? ""}`;
+}
+
+function getRankColor(index: number): string {
+  if (index < 10) {
+    return `var(--chart-${index + 1})`;
+  }
+
+  if (index < 18) {
+    return "var(--ink-400)";
+  }
+
+  return "var(--ink-300)";
+}
+
+function formatPercent(value: number): string {
+  return `${roundToOne(value * 100)}%`;
+}
+
+function roundToOne(value: number): number {
+  return Math.round(value * 10) / 10;
 }
 
 function formatKeywordFontSize(

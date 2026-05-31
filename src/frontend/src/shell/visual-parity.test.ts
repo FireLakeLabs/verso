@@ -47,9 +47,11 @@ describe("visual parity shell model", () => {
         "library-rows",
         "library-cards",
         "report-cadence",
+        "report-authors",
         "report-runtime",
         "report-genre",
         "report-keywords",
+        "report-narrators",
         "settings-interface",
       ],
     );
@@ -106,6 +108,13 @@ describe("visual parity shell model", () => {
           libraryView: "rows",
         },
         {
+          id: "report-authors",
+          view: "report-authors",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
           id: "report-runtime",
           view: "report-runtime",
           nav: "topnav",
@@ -122,6 +131,13 @@ describe("visual parity shell model", () => {
         {
           id: "report-keywords",
           view: "report-keywords",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
+          id: "report-narrators",
+          view: "report-narrators",
           nav: "topnav",
           overview: "calm",
           libraryView: "rows",
@@ -149,7 +165,7 @@ describe("visual parity shell model", () => {
     assert.equal(readVisualParityStateId("?nav=topnav"), null);
     assert.deepEqual(
       getVisualParityState("settings-interface"),
-      visualParityStates[9],
+      visualParityStates.find((state) => state.id === "settings-interface"),
     );
     assert.equal(getVisualParityState("missing-state"), null);
   });
