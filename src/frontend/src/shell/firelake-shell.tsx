@@ -33,12 +33,19 @@ import {
   type ShellPreferences,
   type VisualParityView,
 } from "./visual-parity";
+import {
+  GenreTreemapPage,
+  ReportsHubPage,
+  SubjectKeywordPage,
+} from "./report-pages";
 
 type AppView =
   | VisualParityView
   | "export"
   | "findings"
   | "refresh"
+  | "report-genre"
+  | "report-keywords"
   | "reports"
   | "shelves"
   | "wall";
@@ -131,6 +138,16 @@ const pageMetaByView: Record<AppView, PageMeta> = {
     eyebrow: "Operations",
     title: "Refresh status",
   },
+  "report-genre": {
+    crumbs: ["Reports", "Genre treemap"],
+    eyebrow: "Reports",
+    title: "Genre treemap",
+  },
+  "report-keywords": {
+    crumbs: ["Reports", "Subject keywords"],
+    eyebrow: "Reports",
+    title: "Subject keywords",
+  },
   reports: {
     crumbs: ["Reports", "Queue"],
     eyebrow: "Reports",
@@ -212,11 +229,11 @@ const sidebarSections: readonly {
     label: "Reports",
     items: [
       { label: "Listening cadence", view: "reports" },
-      { label: "Genre treemap", view: "reports" },
+      { label: "Genre treemap", view: "report-genre" },
       { label: "Author concentration", view: "reports" },
       { label: "Narrator affinity", view: "reports" },
       { label: "Runtime distribution", view: "reports" },
-      { label: "Subject keywords", view: "reports" },
+      { label: "Subject keywords", view: "report-keywords" },
       { label: "Cost per hour", view: "reports" },
     ],
   },
@@ -450,6 +467,14 @@ export function FirelakeShell({
               <ReportsPage onNavigate={navigate} />
             ) : null}
 
+            {currentView === "report-genre" ? (
+              <GenreTreemapPage items={items} />
+            ) : null}
+
+            {currentView === "report-keywords" ? (
+              <SubjectKeywordPage items={items} />
+            ) : null}
+
             {currentView === "shelves" ? (
               <PlaceholderPage
                 detail="Issue #8 owns the signed-off smart-shelf evaluation workflows. This shell keeps the route visible while the operational surface catches up to the prototype."
@@ -531,7 +556,7 @@ function TopNavigation({
             <button
               key={item.view}
               type="button"
-              className={`v-topnav-item ${currentView === item.view ? "is-active" : ""}`}
+              className={`v-topnav-item ${isTopNavigationItemActive(item.view, currentView) ? "is-active" : ""}`}
               onClick={() => onNavigate(item.view)}
             >
               {item.label}
@@ -561,6 +586,18 @@ function TopNavigation({
       </div>
     </header>
   );
+}
+
+function isTopNavigationItemActive(itemView: AppView, currentView: AppView) {
+  if (itemView === "reports") {
+    return (
+      currentView === "reports" ||
+      currentView === "report-genre" ||
+      currentView === "report-keywords"
+    );
+  }
+
+  return currentView === itemView;
 }
 
 function SidebarNavigation({
@@ -698,7 +735,9 @@ function TopBar({
             </button>
           </>
         ) : null}
-        {currentView === "reports" ? (
+        {currentView === "reports" ||
+        currentView === "report-genre" ||
+        currentView === "report-keywords" ? (
           <button type="button" className="v-btn v-btn-outline">
             Export view
           </button>
@@ -926,20 +965,45 @@ function OverviewCalmPage({
           <h3 className="v-column-title">Reports</h3>
           <div className="v-link-list">
             {[
-              "Listening cadence",
-              "Genre treemap",
-              "Author concentration",
-              "Narrator affinity",
-              "Cost per hour",
-            ].map((label) => (
+              {
+                label: "Listening cadence",
+                tag: "Queued",
+                view: "reports" as const,
+              },
+              {
+                label: "Genre treemap",
+                tag: "Map",
+                view: "report-genre" as const,
+              },
+              {
+                label: "Author concentration",
+                tag: "Queued",
+                view: "reports" as const,
+              },
+              {
+                label: "Narrator affinity",
+                tag: "Queued",
+                view: "reports" as const,
+              },
+              {
+                label: "Subject keywords",
+                tag: "Cloud",
+                view: "report-keywords" as const,
+              },
+              {
+                label: "Cost per hour",
+                tag: "Queued",
+                view: "reports" as const,
+              },
+            ].map((entry) => (
               <button
-                key={label}
+                key={entry.label}
                 type="button"
                 className="v-link-row"
-                onClick={() => onNavigate("reports")}
+                onClick={() => onNavigate(entry.view)}
               >
-                <span>{label}</span>
-                <span className="v-link-tag">Queued</span>
+                <span>{entry.label}</span>
+                <span className="v-link-tag">{entry.tag}</span>
               </button>
             ))}
           </div>
@@ -1899,51 +1963,7 @@ function LibraryCardsPrototypeView({
 }
 
 function ReportsPage({ onNavigate }: { onNavigate: (view: AppView) => void }) {
-  return (
-    <section className="v-route-grid">
-      {[
-        [
-          "Listening cadence",
-          "Issue #10",
-          "Report transform and visualization work queues into this destination.",
-        ],
-        [
-          "Genre treemap",
-          "Issue #11",
-          "Category hierarchy aggregation lives here once the report module lands.",
-        ],
-        [
-          "Author and narrator reports",
-          "Issue #12",
-          "Signed-off shell destination is in place before the charts arrive.",
-        ],
-        [
-          "Cost per hour",
-          "Issue #14",
-          "Cost basis settings and the final visualization extend this baseline.",
-        ],
-        [
-          "Cover wall",
-          "Issue #15",
-          "Card density and cover-forward browsing both anchor from this shell.",
-        ],
-      ].map(([title, label, body]) => (
-        <article key={title} className="v-route-tile">
-          <div className="v-eyebrow">{label}</div>
-          <h2 className="v-card-title">{title}</h2>
-          <p className="v-body-copy">{body}</p>
-          <button
-            type="button"
-            className="v-inline-link"
-            onClick={() => onNavigate("settings")}
-          >
-            Review interface defaults
-            <ArrowRight aria-hidden="true" className="size-4" />
-          </button>
-        </article>
-      ))}
-    </section>
-  );
+  return <ReportsHubPage onNavigate={onNavigate} />;
 }
 
 function FindingsPage({

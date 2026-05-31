@@ -91,6 +91,17 @@
   --accent-soft: var(--ember-100);
   --accent-fg: var(--white);
 
+  --chart-1: #c2410c;
+  --chart-2: #3a6b8c;
+  --chart-3: #5c7a55;
+  --chart-4: #8c4156;
+  --chart-5: #b58a3e;
+  --chart-6: #4f7f7c;
+  --chart-7: #6b5478;
+  --chart-8: #5b6478;
+  --chart-9: #8e6b52;
+  --chart-10: #2d3340;
+
   --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono:
     "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
