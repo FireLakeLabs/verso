@@ -34,6 +34,8 @@ import {
   type VisualParityView,
 } from "./visual-parity";
 import {
+  AuthorConcentrationPage,
+  NarratorAffinityPage,
   ListeningCadencePage,
   ReportsHubPage,
   RuntimeDistributionPage,
@@ -45,11 +47,13 @@ type AppView =
   | VisualParityView
   | "export"
   | "findings"
+  | "report-authors"
   | "report-cadence"
-  | "report-runtime"
   | "refresh"
   | "report-genre"
   | "report-keywords"
+  | "report-narrators"
+  | "report-runtime"
   | "reports"
   | "shelves"
   | "wall";
@@ -147,6 +151,11 @@ const pageMetaByView: Record<AppView, PageMeta> = {
     eyebrow: "Reports",
     title: "Listening cadence",
   },
+  "report-authors": {
+    crumbs: ["Reports", "Author concentration"],
+    eyebrow: "Reports",
+    title: "Author concentration",
+  },
   "report-runtime": {
     crumbs: ["Reports", "Runtime distribution"],
     eyebrow: "Reports",
@@ -161,6 +170,11 @@ const pageMetaByView: Record<AppView, PageMeta> = {
     crumbs: ["Reports", "Subject keywords"],
     eyebrow: "Reports",
     title: "Subject keywords",
+  },
+  "report-narrators": {
+    crumbs: ["Reports", "Narrator affinity"],
+    eyebrow: "Reports",
+    title: "Narrator affinity",
   },
   reports: {
     crumbs: ["Reports", "Queue"],
@@ -244,8 +258,8 @@ const sidebarSections: readonly {
     items: [
       { label: "Listening cadence", view: "report-cadence" },
       { label: "Genre treemap", view: "report-genre" },
-      { label: "Author concentration", view: "reports" },
-      { label: "Narrator affinity", view: "reports" },
+      { label: "Author concentration", view: "report-authors" },
+      { label: "Narrator affinity", view: "report-narrators" },
       { label: "Runtime distribution", view: "report-runtime" },
       { label: "Subject keywords", view: "report-keywords" },
       { label: "Cost per hour", view: "reports" },
@@ -489,6 +503,10 @@ export function FirelakeShell({
               />
             ) : null}
 
+            {currentView === "report-authors" ? (
+              <AuthorConcentrationPage items={items} onNavigate={navigate} />
+            ) : null}
+
             {currentView === "report-runtime" ? (
               <RuntimeDistributionPage items={items} onNavigate={navigate} />
             ) : null}
@@ -499,6 +517,10 @@ export function FirelakeShell({
 
             {currentView === "report-keywords" ? (
               <SubjectKeywordPage items={items} />
+            ) : null}
+
+            {currentView === "report-narrators" ? (
+              <NarratorAffinityPage items={items} onNavigate={navigate} />
             ) : null}
 
             {currentView === "shelves" ? (
@@ -994,13 +1016,13 @@ function OverviewCalmPage({
               },
               {
                 label: "Author concentration",
-                tag: "Queued",
-                view: "reports" as const,
+                tag: "Pareto",
+                view: "report-authors" as const,
               },
               {
                 label: "Narrator affinity",
-                tag: "Queued",
-                view: "reports" as const,
+                tag: "Voice",
+                view: "report-narrators" as const,
               },
               {
                 label: "Subject keywords",
@@ -3373,9 +3395,11 @@ function isReportView(view: AppView): boolean {
   return (
     view === "reports" ||
     view === "report-cadence" ||
+    view === "report-authors" ||
     view === "report-runtime" ||
     view === "report-genre" ||
-    view === "report-keywords"
+    view === "report-keywords" ||
+    view === "report-narrators"
   );
 }
 

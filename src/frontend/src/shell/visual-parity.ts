@@ -8,10 +8,12 @@ export type LibraryViewMode = (typeof libraryViewValues)[number];
 export type VisualParityView =
   | "library"
   | "overview"
+  | "report-authors"
   | "report-cadence"
-  | "report-runtime"
   | "report-genre"
   | "report-keywords"
+  | "report-narrators"
+  | "report-runtime"
   | "settings";
 
 export type ShellPreferences = {
@@ -72,6 +74,10 @@ export const visualParityStates: readonly VisualParityState[] = [
     view: "report-cadence",
     preferences: defaultShellPreferences,
   }),
+  createVisualParityState("report-authors", {
+    view: "report-authors",
+    preferences: defaultShellPreferences,
+  }),
   createVisualParityState("report-runtime", {
     view: "report-runtime",
     preferences: defaultShellPreferences,
@@ -82,6 +88,10 @@ export const visualParityStates: readonly VisualParityState[] = [
   }),
   createVisualParityState("report-keywords", {
     view: "report-keywords",
+    preferences: defaultShellPreferences,
+  }),
+  createVisualParityState("report-narrators", {
+    view: "report-narrators",
     preferences: defaultShellPreferences,
   }),
   createVisualParityState("settings-interface", {
