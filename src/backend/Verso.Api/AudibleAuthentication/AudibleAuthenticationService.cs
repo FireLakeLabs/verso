@@ -157,14 +157,44 @@ public sealed class AudibleAuthenticationService(
   {
     Directory.CreateDirectory(Path.GetDirectoryName(pendingAuthentication.ActiveIdentityFilePath)!);
 
-    if (File.Exists(pendingAuthentication.ActiveIdentityFilePath))
+    if (!File.Exists(pendingAuthentication.PendingIdentityFilePath))
     {
-      File.Delete(pendingAuthentication.ActiveIdentityFilePath);
+      throw new FileNotFoundException(
+          "The completed Audible identity file is missing.",
+          pendingAuthentication.PendingIdentityFilePath);
     }
 
-    File.Move(
-        pendingAuthentication.PendingIdentityFilePath,
-        pendingAuthentication.ActiveIdentityFilePath);
+    if (!File.Exists(pendingAuthentication.ActiveIdentityFilePath))
+    {
+      File.Move(
+          pendingAuthentication.PendingIdentityFilePath,
+          pendingAuthentication.ActiveIdentityFilePath);
+
+      return;
+    }
+
+    var backupIdentityFilePath = $"{pendingAuthentication.ActiveIdentityFilePath}.backup-{Guid.NewGuid():N}";
+
+    File.Move(pendingAuthentication.ActiveIdentityFilePath, backupIdentityFilePath);
+
+    try
+    {
+      File.Move(
+          pendingAuthentication.PendingIdentityFilePath,
+          pendingAuthentication.ActiveIdentityFilePath);
+
+      File.Delete(backupIdentityFilePath);
+    }
+    catch
+    {
+      if (!File.Exists(pendingAuthentication.ActiveIdentityFilePath)
+          && File.Exists(backupIdentityFilePath))
+      {
+        File.Move(backupIdentityFilePath, pendingAuthentication.ActiveIdentityFilePath);
+      }
+
+      throw;
+    }
   }
 
   private sealed class PendingAudibleAuthentication(

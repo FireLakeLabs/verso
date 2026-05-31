@@ -1,6 +1,7 @@
 
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -601,6 +602,27 @@ public sealed class AudibleLibraryImportTests
   }
 
   [Fact]
+  public async Task SettingsEndpointRejectsCostBasisValuesThatOverflowStoredCents()
+  {
+    await using var application = new VersoApplicationFactory([]);
+
+    using var client = application.CreateClient();
+
+    var response = await client.PutAsJsonAsync(
+        "/api/settings",
+        new UpdateSettingsRequest(
+            CostBasis: new CostBasisSettingsMutationDto("per-credit-value", 21474836.48m, "USD")));
+
+    Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+
+    Assert.Equal("Invalid settings update.", json["title"]!.GetValue<string>());
+    Assert.Equal(400, json["status"]!.GetValue<int>());
+  }
+
+  [Fact]
   public async Task StartAuthenticationReturnsServerErrorWhenLoginClientFailsBeforePrompt()
   {
     await using var application = new VersoApplicationFactory([]);
@@ -650,6 +672,57 @@ public sealed class AudibleLibraryImportTests
         new StartAudibleAuthenticationRequest("uk"));
 
     Assert.Equal(HttpStatusCode.InternalServerError, failedStartResponse.StatusCode);
+
+    var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
+        "/api/audible-authentication/session");
+
+    Assert.NotNull(currentSession);
+    Assert.Equal("authenticated", currentSession.Status);
+    Assert.Equal("us", currentSession.Locale);
+  }
+
+  [Fact]
+  public async Task FailedReauthenticationAfterBrowserCompletionPreservesExistingAudibleSession()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    var loginClient = new MutableAudibleLoginClient();
+    application.SetLoginClient(loginClient);
+
+    using var client = application.CreateClient();
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    loginClient.DeletePendingIdentityBeforeReturn = true;
+
+    var reauthenticationStartResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("uk"));
+    var reauthenticationPrompt = await reauthenticationStartResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(reauthenticationPrompt);
+
+    var reauthenticationCompleteResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{reauthenticationPrompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code-2"));
+
+    Assert.Equal(HttpStatusCode.OK, reauthenticationCompleteResponse.StatusCode);
+
+    var reauthenticationStatus = await reauthenticationCompleteResponse.Content.ReadFromJsonAsync<AudibleAuthenticationStatusResponse>();
+
+    Assert.NotNull(reauthenticationStatus);
+    Assert.Equal("failed", reauthenticationStatus.Status);
+    Assert.Contains("identity file is missing", reauthenticationStatus.LastError, StringComparison.OrdinalIgnoreCase);
 
     var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
         "/api/audible-authentication/session");
@@ -792,6 +865,7 @@ public sealed class AudibleLibraryImportTests
   private sealed class MutableAudibleLoginClient : IAudibleLoginClient
   {
     public bool ShouldFailBeforePrompt { get; set; }
+    public bool DeletePendingIdentityBeforeReturn { get; set; }
 
     public async Task EnsureAuthenticatedAsync(
         string locale,
@@ -811,6 +885,11 @@ public sealed class AudibleLibraryImportTests
 
       Directory.CreateDirectory(Path.GetDirectoryName(identityFilePath)!);
       await File.WriteAllTextAsync(identityFilePath, responseUrl, cancellationToken);
+
+      if (DeletePendingIdentityBeforeReturn && File.Exists(identityFilePath))
+      {
+        File.Delete(identityFilePath);
+      }
     }
   }
 

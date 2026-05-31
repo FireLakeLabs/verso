@@ -9,6 +9,7 @@ public sealed class SettingsService(
   VersoStorageOptions storageOptions)
 {
   public const int CurrentSettingsId = 1;
+  private const decimal MaxPerCreditValue = (int.MaxValue - 0.5m) / 100m;
 
   private static readonly string[] SelectiveSnapshotFields =
   [
@@ -85,7 +86,7 @@ public sealed class SettingsService(
     if (request.CostBasis is not null)
     {
       currentSettings.DefaultCostBasis = request.CostBasis.DefaultBasis;
-      currentSettings.PerCreditValueInCents = decimal.ToInt32(decimal.Round(request.CostBasis.PerCreditValue * 100m, 0, MidpointRounding.AwayFromZero));
+      currentSettings.PerCreditValueInCents = ConvertPerCreditValueToCents(request.CostBasis.PerCreditValue);
       currentSettings.CostBasisCurrencyCode = request.CostBasis.CurrencyCode;
     }
 
@@ -185,7 +186,13 @@ public sealed class SettingsService(
     return costBasis is null
         || (costBasis.DefaultBasis is "per-credit-value" or "list-price"
             && costBasis.PerCreditValue >= 0m
+            && costBasis.PerCreditValue <= MaxPerCreditValue
             && string.Equals(costBasis.CurrencyCode, "USD", StringComparison.OrdinalIgnoreCase));
+  }
+
+  private static int ConvertPerCreditValueToCents(decimal perCreditValue)
+  {
+    return decimal.ToInt32(decimal.Round(perCreditValue * 100m, 0, MidpointRounding.AwayFromZero));
   }
 
   private static bool IsValidArchiveExportSettings(ArchiveExportSettingsMutationDto? archiveExport)
