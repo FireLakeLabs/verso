@@ -65,27 +65,45 @@ try {
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Overview$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Overview$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Library$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Library$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Reports$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Reports$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Health$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Health$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Refresh$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Refresh$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
-      await primaryNav.locator("button").filter({ hasText: /^Settings$/ }).isVisible(),
+      await primaryNav
+        .locator("button")
+        .filter({ hasText: /^Settings$/ })
+        .isVisible(),
       true,
     );
     assert.equal(
