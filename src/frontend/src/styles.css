@@ -1097,6 +1097,75 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+.v-cover-wall-head {
+  align-items: center;
+}
+
+.v-cover-wall-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 2px;
+  padding: 2px;
+}
+
+.v-cover-wall-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  transition:
+    box-shadow 140ms var(--ease-standard),
+    transform 140ms var(--ease-standard);
+}
+
+.v-cover-wall-tile:hover,
+.v-cover-wall-tile:focus-visible {
+  z-index: 2;
+  box-shadow: var(--shadow-2);
+  outline: none;
+  transform: scale(1.04);
+}
+
+.v-cover-wall-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.v-cover-wall-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v-cover-wall-placeholder {
+  position: relative;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 9% 10%;
+  isolation: isolate;
+}
+
+.v-cover-wall-missing {
+  color: currentColor;
+  font-family: var(--font-mono);
+  font-size: clamp(7px, 1cqi, 10px);
+  letter-spacing: 0.12em;
+  opacity: 0.58;
+  text-transform: uppercase;
+}
+
+.v-cover-wall-empty {
+  padding: 24px;
+}
+
 .v-settings-nav {
   display: flex;
   flex-direction: column;

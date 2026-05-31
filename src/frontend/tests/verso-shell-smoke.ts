@@ -5,7 +5,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, type Page } from "@playwright/test";
+import { chromium, type Page, type Route } from "@playwright/test";
+import type { LibraryItemsResponse } from "../src/library-api";
 
 const frontendPort = Number.parseInt(
   process.env.VERSO_FRONTEND_PORT ?? "5202",
@@ -21,6 +22,7 @@ const backendProject = fileURLToPath(
   new URL("../../../src/backend/Verso.Api/Verso.Api.csproj", import.meta.url),
 );
 const smokeDataDirectory = mkdtempSync(join(tmpdir(), "verso-smoke-"));
+const cachedCoverSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><rect width="240" height="240" fill="#2d4f64"/><path d="M0 240 240 84v156z" fill="#d97757" opacity=".32"/><text x="22" y="44" fill="#f6f4ef" font-family="Arial" font-size="16" letter-spacing="2">SMOKE AUTHOR</text><text x="22" y="136" fill="#f6f4ef" font-family="Arial" font-size="28" font-weight="700">Cached</text><text x="22" y="170" fill="#f6f4ef" font-family="Arial" font-size="28" font-weight="700">Cover</text></svg>`;
 
 const backend = spawn(
   "dotnet",
@@ -56,6 +58,7 @@ try {
 
   try {
     const page = await browser.newPage();
+    await installCoverWallSmokeRoutes(page);
     await gotoWithRetry(page, baseUrl);
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
     const primaryNavText = (await primaryNav.textContent()) ?? "";
@@ -103,6 +106,19 @@ try {
       await page
         .getByRole("heading", { name: "Runtime distribution" })
         .isVisible(),
+      true,
+    );
+
+    await page.getByRole("button", { name: "Covers" }).click();
+    await page.locator("h1").filter({ hasText: "Cover wall" }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("img", { name: "Cover art for Cached Cover Smoke" })
+        .isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByText("Cover not cached").first().isVisible(),
       true,
     );
   } finally {
@@ -170,6 +186,79 @@ async function gotoWithRetry(page: Page, url: string) {
   }
 
   throw lastError;
+}
+
+async function installCoverWallSmokeRoutes(page: Page) {
+  const response: LibraryItemsResponse = {
+    items: [
+      {
+        asin: "B00SMOKE001",
+        authors: ["Smoke Author"],
+        coverImages: [
+          {
+            cachedAsset: {
+              cachedAtUtc: "2026-01-02T03:04:05.000Z",
+              contentType: "image/svg+xml",
+              sizeBytes: cachedCoverSvg.length,
+              url: "/api/library/items/B00SMOKE001/cover-images/500",
+            },
+            sourceUrl: "https://images.audible.test/smoke-cached.jpg",
+            variant: "500",
+          },
+        ],
+        hasSnapshots: false,
+        isNoLongerPresent: false,
+        narrators: ["Smoke Narrator"],
+        percentComplete: 20,
+        rawAudiblePayload: JSON.stringify({ purchase_date: "2026-01-02" }),
+        runtimeMinutes: 480,
+        title: "Cached Cover Smoke",
+      },
+      {
+        asin: "B00SMOKE002",
+        authors: ["Smoke Author"],
+        coverImages: [
+          {
+            cachedAsset: null,
+            sourceUrl: "https://images.audible.test/remote-only.jpg",
+            variant: "500",
+          },
+        ],
+        hasSnapshots: false,
+        isNoLongerPresent: false,
+        narrators: ["Smoke Narrator"],
+        percentComplete: 0,
+        rawAudiblePayload: JSON.stringify({ purchase_date: "2026-01-01" }),
+        runtimeMinutes: 300,
+        title: "Missing Cover Smoke",
+      },
+    ],
+  };
+
+  await page.route(
+    "**/api/library/items/B00SMOKE001/cover-images/500",
+    async (route) => {
+      await route.fulfill({
+        body: cachedCoverSvg,
+        contentType: "image/svg+xml",
+        status: 200,
+      });
+    },
+  );
+  await page.route("**/api/library/items", async (route) => {
+    await fulfillJson(route, response);
+  });
+  await page.route("**/api/library/items?*", async (route) => {
+    await fulfillJson(route, response);
+  });
+}
+
+async function fulfillJson(route: Route, body: unknown) {
+  await route.fulfill({
+    body: JSON.stringify(body),
+    contentType: "application/json",
+    status: 200,
+  });
 }
 
 async function waitForServer(url: string) {

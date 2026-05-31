@@ -9,6 +9,7 @@ import {
   Settings2,
   Tag,
 } from "lucide-react";
+import { cn } from "../lib/utils";
 import type {
   SettingsResponse,
   StartAudibleAuthenticationResponse,
@@ -20,6 +21,11 @@ import type {
   LibraryRefreshJobDto,
   LibraryRefreshStatusResponse,
 } from "../library-api";
+import {
+  createCoverArtWallReport,
+  type CoverArtWallEntry,
+  type CoverArtWallOrder,
+} from "../reports/cover-art-wall-report";
 import { summarizeLibraryReport } from "../reports/library-summary-report";
 import {
   createLibraryScreenReport,
@@ -323,6 +329,8 @@ export function FirelakeShell({
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(
     initialShellState.settingsSection,
   );
+  const [coverWallOrder, setCoverWallOrder] =
+    useState<CoverArtWallOrder>("recent");
   const effectivePreferences =
     initialShellState.parityStateId === null
       ? preferences
@@ -550,10 +558,11 @@ export function FirelakeShell({
             ) : null}
 
             {currentView === "wall" ? (
-              <PlaceholderPage
-                detail="The cover-wall surface is still placeholder-only in the live app. This route remains visible so the approved information architecture stays intact."
-                eyebrow="Library"
-                title="Cover wall"
+              <CoverArtWallPage
+                items={items}
+                onChangeOrder={setCoverWallOrder}
+                onOpenItem={openItem}
+                order={coverWallOrder}
               />
             ) : null}
 
@@ -788,6 +797,11 @@ function TopBar({
               Export filtered
             </button>
           </>
+        ) : null}
+        {currentView === "wall" ? (
+          <button type="button" className="v-btn v-btn-outline">
+            Export wallpaper
+          </button>
         ) : null}
         {isReportView(currentView) ? (
           <button type="button" className="v-btn v-btn-outline">
@@ -1046,6 +1060,11 @@ function OverviewCalmPage({
                 label: "Subject keywords",
                 tag: "Cloud",
                 view: "report-keywords" as const,
+              },
+              {
+                label: "Cover wall",
+                tag: "Browse",
+                view: "wall" as const,
               },
               {
                 label: "Cost per hour",
@@ -2016,6 +2035,117 @@ function LibraryCardsPrototypeView({
         </div>
       )}
     </section>
+  );
+}
+
+function CoverArtWallPage({
+  items,
+  onChangeOrder,
+  onOpenItem,
+  order,
+}: {
+  items: readonly LibraryItemDto[];
+  onChangeOrder: (order: CoverArtWallOrder) => void;
+  onOpenItem: (asin: string) => void;
+  order: CoverArtWallOrder;
+}) {
+  const report = useMemo(
+    () => createCoverArtWallReport({ items, order }),
+    [items, order],
+  );
+  const orderOptions: readonly { label: string; value: CoverArtWallOrder }[] = [
+    { label: "Recent", value: "recent" },
+    { label: "Runtime", value: "runtime" },
+    { label: "Palette", value: "palette" },
+    { label: "Random", value: "random" },
+  ];
+
+  return (
+    <section className="v-card">
+      <div className="v-card-head v-cover-wall-head">
+        <div>
+          <div className="v-eyebrow">
+            {report.totalCount.toLocaleString()} covers
+          </div>
+          <h2 className="v-card-title">Cover wall</h2>
+        </div>
+        <div
+          className="v-segmented"
+          role="tablist"
+          aria-label="Cover wall ordering"
+        >
+          {orderOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={cn(
+                "v-segmented-btn",
+                order === option.value && "is-active",
+              )}
+              onClick={() => onChangeOrder(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="v-card-body is-tight">
+        {report.entries.length > 0 ? (
+          <div className="v-cover-wall-grid">
+            {report.entries.map((entry) => (
+              <button
+                key={entry.asin}
+                type="button"
+                className="v-cover-wall-tile"
+                onClick={() => onOpenItem(entry.asin)}
+                aria-label={`Open ${entry.title}`}
+                title={`${entry.title} - ${entry.authors[0] ?? "Unknown author"}`}
+              >
+                <CoverWallTile entry={entry} />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="v-cover-wall-empty">
+            <EmptyInline message="Refresh the Audible Library to populate cached cover art." />
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CoverWallTile({ entry }: { entry: CoverArtWallEntry }) {
+  if (entry.cover.kind === "cached") {
+    return (
+      <span className="v-cover-wall-media">
+        <img
+          src={entry.cover.url}
+          alt={entry.cover.alt}
+          className="v-cover-wall-image"
+          loading="lazy"
+        />
+      </span>
+    );
+  }
+
+  const seed = hashString(`${entry.asin}${entry.title}`);
+  const palette = getPrototypeCoverPalette(seed);
+  const style = {
+    "--library-cover-accent": palette.accent,
+    background: palette.background,
+    color: palette.foreground,
+  } as CSSProperties;
+
+  return (
+    <span className="v-cover-wall-media v-cover-wall-placeholder" style={style}>
+      <LibraryCardCoverMark foreground={palette.foreground} seed={seed} />
+      <span className="v-library-cover-author">
+        {(entry.authors[0] ?? "Unknown").toUpperCase()}
+      </span>
+      <span className="v-library-cover-title">{entry.title}</span>
+      <span className="v-cover-wall-missing">Cover not cached</span>
+    </span>
   );
 }
 
