@@ -45,6 +45,12 @@ frontend-format:
 frontend-smoke FRONTEND_PORT=frontend_port:
     cd src/frontend && VERSO_FRONTEND_PORT="{{FRONTEND_PORT}}" pnpm test:smoke
 
+frontend-visual FRONTEND_PORT=frontend_port:
+    cd src/frontend && VERSO_FRONTEND_PORT="{{FRONTEND_PORT}}" pnpm test:visual
+
+frontend-visual-update:
+    cd src/frontend && pnpm test:visual:update
+
 audit:
     dotnet list Verso.slnx package --vulnerable --include-transitive
     pnpm --dir src/frontend audit --audit-level moderate
@@ -52,4 +58,4 @@ audit:
 scaffold-smoke:
     bash tests/scaffold/scaffold-smoke.sh
 
-verify: backend-build backend-test backend-format frontend-typecheck frontend-test frontend-lint frontend-format audit frontend-smoke
+verify: backend-build backend-test backend-format frontend-typecheck frontend-test frontend-lint frontend-format audit frontend-smoke frontend-visual

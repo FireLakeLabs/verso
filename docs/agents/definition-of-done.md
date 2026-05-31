@@ -7,6 +7,7 @@ An implementation issue is not done until:
 - The `review` skill was used for a review pass, or the issue notes why a review pass was not applicable yet.
 - Relevant guide updates are made or explicitly deemed unnecessary.
 - Relevant sensors are added or updated.
+- Signed-off frontend UI surfaces pass the relevant visual parity checks against the approved prototype states, or the PR documents the intentional divergence and updates the approved reference and baselines in the same change.
 - `just verify` or the closest available issue-stage equivalent passes.
 - Tests cover behavior, not private implementation details.
 - The implementation does not contradict `CONTEXT.md` or relevant ADRs.

@@ -1,0 +1,116 @@
+@font-face {
+  font-family: "Geist";
+  src:
+    url("/fonts/Geist_wght_.woff2") format("woff2-variations"),
+    url("/fonts/Geist_wght_.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist";
+  src:
+    url("/fonts/Geist-Italic_wght_.woff2") format("woff2-variations"),
+    url("/fonts/Geist-Italic_wght_.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src:
+    url("/fonts/GeistMono%5Bwght%5D.woff2") format("woff2-variations"),
+    url("/fonts/GeistMono%5Bwght%5D.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src:
+    url("/fonts/GeistMono-Italic%5Bwght%5D.woff2") format("woff2-variations"),
+    url("/fonts/GeistMono-Italic%5Bwght%5D.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --ink-950: #0b0e14;
+  --ink-900: #131720;
+  --ink-800: #1e2330;
+  --ink-700: #2d3340;
+  --ink-600: #424a5c;
+  --ink-500: #5b6478;
+  --ink-400: #7a8395;
+  --ink-300: #a8b0bf;
+  --ink-200: #cdd2dd;
+  --ink-150: #dce0e8;
+  --ink-100: #e5e8ef;
+  --ink-75: #eceff4;
+  --ink-50: #f2f4f8;
+  --paper: #fafbfc;
+  --white: #ffffff;
+
+  --ember-700: #7a2a07;
+  --ember-600: #9a3309;
+  --ember-500: #c2410c;
+  --ember-400: #e2541a;
+  --ember-300: #f0825c;
+  --ember-100: #fdead9;
+  --ember-50: #fef6ef;
+
+  --positive: #3f7a4f;
+  --positive-soft: #e4efe7;
+  --negative: #b43a3a;
+  --negative-soft: #f4e2e2;
+  --info: #3a6b8c;
+  --info-soft: #e2ecf3;
+
+  --fg: var(--ink-950);
+  --fg-1: var(--ink-900);
+  --fg-2: var(--ink-600);
+  --fg-3: var(--ink-400);
+  --fg-inverse: var(--white);
+
+  --bg: var(--paper);
+  --bg-1: var(--white);
+  --bg-2: var(--ink-50);
+  --bg-3: var(--ink-100);
+
+  --line-1: var(--ink-150);
+  --line-2: var(--ink-200);
+  --line-3: var(--ink-300);
+
+  --accent: var(--ember-500);
+  --accent-hover: var(--ember-600);
+  --accent-press: var(--ember-700);
+  --accent-soft: var(--ember-100);
+  --accent-fg: var(--white);
+
+  --font-sans: "Geist", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono:
+    "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius: 2px;
+  --radius-pill: 999px;
+  --shadow-1: 0 1px 0 0 rgb(11 14 20 / 0.04), 0 1px 2px 0 rgb(11 14 20 / 0.04);
+  --shadow-2:
+    0 1px 0 0 rgb(11 14 20 / 0.05), 0 4px 12px -2px rgb(11 14 20 / 0.06);
+  --shadow-focus: 0 0 0 3px rgb(194 65 12 / 0.2);
+
+  --background: var(--bg);
+  --foreground: var(--fg-1);
+  --card: var(--bg-1);
+  --card-foreground: var(--fg-1);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+  --muted: var(--bg-2);
+  --muted-foreground: var(--fg-2);
+  --accent-color: var(--accent-soft);
+  --accent-foreground: var(--ember-700);
+  --border: var(--line-1);
+}

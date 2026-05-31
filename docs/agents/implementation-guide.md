@@ -55,4 +55,12 @@ Run the issue-relevant narrow commands while developing. Before handoff, run:
 just verify
 ```
 
+If the issue changes a signed-off frontend surface, also run the visual parity sensor on the issue-derived frontend port while developing:
+
+```bash
+just frontend-visual FRONTEND_PORT=5210
+```
+
+Use deterministic fixture data and approved prototype reference states for parity runs. Treat changed baselines as part of the implementation, not post-review cleanup.
+
 If `just verify` cannot pass, document the exact command failure and why the issue is still safe to review.

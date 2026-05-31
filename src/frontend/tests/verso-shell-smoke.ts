@@ -57,26 +57,45 @@ try {
   try {
     const page = await browser.newPage();
     await page.goto(baseUrl);
+    const primaryNav = page.getByRole("navigation", { name: "Primary" });
 
-    await page.getByRole("heading", { name: "Verso Library" }).waitFor();
+    await page.getByRole("heading", { name: "Library overview" }).waitFor();
     assert.equal(
       await page.getByRole("heading", { name: "Library overview" }).isVisible(),
       true,
     );
     assert.equal(
-      await page.getByRole("heading", { name: "Refresh status" }).isVisible(),
+      await primaryNav.locator("button").filter({ hasText: /^Overview$/ }).isVisible(),
       true,
     );
     assert.equal(
-      await page.getByRole("heading", { name: "Library table" }).isVisible(),
+      await primaryNav.locator("button").filter({ hasText: /^Library$/ }).isVisible(),
       true,
     );
     assert.equal(
-      await page.getByRole("heading", { name: "Item detail" }).isVisible(),
+      await primaryNav.locator("button").filter({ hasText: /^Reports$/ }).isVisible(),
       true,
     );
     assert.equal(
-      await page.getByRole("button", { name: /start refresh/i }).isVisible(),
+      await primaryNav.locator("button").filter({ hasText: /^Health$/ }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await primaryNav.locator("button").filter({ hasText: /^Refresh$/ }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await primaryNav.locator("button").filter({ hasText: /^Settings$/ }).isVisible(),
+      true,
+    );
+    assert.equal(
+      await page
+        .getByRole("button", { name: /Search 1 library owner workspace/i })
+        .isVisible(),
+      true,
+    );
+    assert.equal(
+      await page.getByRole("heading", { name: "Reports" }).isVisible(),
       true,
     );
   } finally {

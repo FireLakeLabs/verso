@@ -18,6 +18,7 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 - `docs/agents/triage-labels.md` defines the canonical tracker labels.
 - `docs/agents/implementation-guide.md` defines the Solid v1 monorepo, worktree, port, and verification conventions.
 - `docs/agents/export-privacy-guide.md` defines Cached Asset, Archive Export, privacy, and no-PDF-caching boundaries.
+- `clickable-prototype/verso-prototype-smart-shelves-review/` is the approved Firelake UI reference bundle for signed-off frontend surfaces until a newer handoff or ADR replaces it.
 - `docs/agents/development-workflow.md` defines TDD/review usage, parallel worktrees, and issue-derived local ports.
 - `docs/agents/definition-of-done.md` defines when implementation issues are complete.
 
@@ -54,6 +55,7 @@ This document describes the guides and sensors that keep coding-agent work on Ve
 | Cost Basis settings tests | #8 | Cost interpretation is explicit and stable. |
 | Cached Asset tests | #9 | Cover caching and asset failure behavior work without PDF caching creep. |
 | Frontend report transform tests | #10, #11, #12, #14, #15 | Report calculations stay testable outside React components. |
+| Frontend visual parity sensor | #24, then each signed-off UI issue | Signed-off Firelake surfaces do not drift silently from the approved prototype bundle. |
 | Smart Shelf rule tests | #13 | Backend-authoritative structured rules behave consistently. |
 | Archive Export golden tests | #16 | Fidelity-first export includes the expected restorable state. |
 | Export job tests | #16 | Export status, typed errors, and result handling work. |
@@ -175,6 +177,17 @@ Add export trust sensors:
 - Projection Export tests.
 - Export job status/error tests.
 - Final export/privacy guide.
+
+### #24 Add Firelake frontend fidelity baseline and visual parity sensor
+
+Add the signed-off UI fidelity controls:
+
+- approved prototype reference states sourced from `clickable-prototype/verso-prototype-smart-shelves-review/`;
+- deterministic visual parity checks wired into `just verify`;
+- volatile-region stabilization or masking so parity failures signal visual drift rather than runtime noise;
+- ownership rules that require issue #8 and frontend report/visualization issues such as #10 through #15 to update the parity states and baselines for any signed-off surface they change.
+
+After #24 lands, later frontend issues should treat parity updates as part of the same change, not as separate cleanup.
 
 ## Milestone sensors
 

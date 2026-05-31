@@ -33,12 +33,21 @@ export type LibraryRefreshStatusResponse = {
 };
 
 export type LibraryOverviewResponse = {
+  prototypeDisplay?: {
+    calmOverviewMetricDetails?: {
+      completedDetail: string;
+      hoursDetail: string;
+      itemsDetail: string;
+      openFindingsDetail: string;
+    };
+  };
   summary: {
     totalItems: number;
     presentItems: number;
     noLongerPresentItems: number;
     completedItems: number;
     inProgressItems: number;
+    openFindingsCount?: number;
   };
   latestRefreshJob: LibraryRefreshJobDto | null;
 };
@@ -53,6 +62,7 @@ export type LibraryItemDto = {
   rawAudiblePayload: string;
   isNoLongerPresent: boolean;
   hasSnapshots: boolean;
+  coverSeed?: number;
 };
 
 export type LibraryItemsResponse = {
