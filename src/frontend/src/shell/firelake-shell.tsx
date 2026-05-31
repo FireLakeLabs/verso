@@ -10,6 +10,9 @@ import {
   Tag,
 } from "lucide-react";
 import type {
+  SettingsResponse,
+  StartAudibleAuthenticationResponse,
+  UpdateSettingsRequest,
   LibraryFilters,
   LibraryItemDetailDto,
   LibraryItemDto,
@@ -24,7 +27,6 @@ import {
 } from "../reports/library-screen-report";
 import {
   buildVisualParitySearch,
-  defaultShellPreferences,
   getVisualParityState,
   readVisualParityStateId,
   visualParityStates,
@@ -40,7 +42,13 @@ type AppView =
   | "reports"
   | "shelves"
   | "wall";
-type SettingsSection = "interface";
+type SettingsSection =
+  | "authentication"
+  | "refresh"
+  | "cost-basis"
+  | "local-data"
+  | "archive-export"
+  | "interface";
 
 type FirelakeShellProps = {
   activeAsin: string | null;
@@ -55,12 +63,27 @@ type FirelakeShellProps = {
     key: Key,
     value: LibraryFilters[Key],
   ) => void;
+  onChangePreference: <Key extends keyof ShellPreferences>(
+    key: Key,
+    value: ShellPreferences[Key],
+  ) => void;
+  onCompleteAuthentication: (
+    sessionId: string,
+    responseUrl: string,
+  ) => Promise<void>;
   onSetActiveAsin: (asin: string) => void;
+  onSignOutAuthentication: () => Promise<void>;
+  onStartAuthentication: (
+    locale: string,
+  ) => Promise<StartAudibleAuthenticationResponse>;
   onStartRefresh: () => void;
+  onUpdateSettings: (request: UpdateSettingsRequest) => Promise<unknown>;
   onToggleSelection: (asin: string) => void;
   overview: LibraryOverviewResponse | null;
+  preferences: ShellPreferences;
   refreshStatus: LibraryRefreshStatusResponse | null;
   selectedAsins: readonly string[];
+  settings: SettingsResponse | null;
 };
 
 type InitialShellState = {
@@ -81,8 +104,6 @@ type LeaderboardEntry = {
   name: string;
   runtimeMinutes: number;
 };
-
-const shellPreferencesStorageKey = "verso.shell-preferences";
 
 const pageMetaByView: Record<AppView, PageMeta> = {
   findings: {
@@ -226,16 +247,23 @@ export function FirelakeShell({
   items,
   loadError,
   onChangeFilter,
+  onChangePreference,
+  onCompleteAuthentication,
   onSetActiveAsin,
+  onSignOutAuthentication,
+  onStartAuthentication,
   onStartRefresh,
+  onUpdateSettings,
   onToggleSelection,
   overview,
+  preferences,
   refreshStatus,
   selectedAsins,
+  settings,
 }: FirelakeShellProps) {
-  const initialShellState = useMemo(() => getInitialShellState(), []);
-  const [preferences, setPreferences] = useState<ShellPreferences>(
-    initialShellState.preferences,
+  const initialShellState = useMemo(
+    () => getInitialShellState(preferences),
+    [preferences],
   );
   const [currentView, setCurrentView] = useState<AppView>(
     initialShellState.view,
@@ -243,6 +271,10 @@ export function FirelakeShell({
   const [settingsSection, setSettingsSection] = useState<SettingsSection>(
     initialShellState.settingsSection,
   );
+  const effectivePreferences =
+    initialShellState.parityStateId === null
+      ? preferences
+      : initialShellState.preferences;
 
   const screenReport = useMemo(
     () =>
@@ -278,8 +310,8 @@ export function FirelakeShell({
       [...items]
         .filter((item) => item.percentComplete > 0 && item.percentComplete < 95)
         .sort((left, right) => right.percentComplete - left.percentComplete)
-        .slice(0, preferences.overview === "dense" ? 6 : 4),
-    [items, preferences.overview],
+        .slice(0, effectivePreferences.overview === "dense" ? 6 : 4),
+    [effectivePreferences.overview, items],
   );
   const topAuthors = useMemo(() => rankContributors(items, "authors"), [items]);
   const topNarrators = useMemo(
@@ -294,23 +326,8 @@ export function FirelakeShell({
     [],
   );
 
-  useEffect(() => {
-    if (initialShellState.parityStateId !== null) {
-      return;
-    }
-
-    try {
-      window.localStorage.setItem(
-        shellPreferencesStorageKey,
-        JSON.stringify(preferences),
-      );
-    } catch {
-      return;
-    }
-  }, [initialShellState.parityStateId, preferences]);
-
   const pageMeta =
-    currentView === "library" && preferences.libraryView === "cards"
+    currentView === "library" && effectivePreferences.libraryView === "cards"
       ? {
           ...pageMetaByView.library,
           title: "Library · all items",
@@ -334,22 +351,23 @@ export function FirelakeShell({
     key: Key,
     value: ShellPreferences[Key],
   ) {
-    setPreferences((currentPreferences) => ({
-      ...currentPreferences,
-      [key]: value,
-    }));
+    if (initialShellState.parityStateId !== null) {
+      return;
+    }
+
+    onChangePreference(key, value);
   }
 
   return (
     <div
-      className={`v-shell ${preferences.nav === "sidebar" ? "is-sidebar" : "is-topnav"}`}
+      className={`v-shell ${effectivePreferences.nav === "sidebar" ? "is-sidebar" : "is-topnav"}`}
       data-current-view={currentView}
-      data-library-view={preferences.libraryView}
-      data-overview-variant={preferences.overview}
+      data-library-view={effectivePreferences.libraryView}
+      data-overview-variant={effectivePreferences.overview}
       data-parity-state={initialShellState.parityStateId ?? ""}
-      data-shell-nav={preferences.nav}
+      data-shell-nav={effectivePreferences.nav}
     >
-      {preferences.nav === "topnav" ? (
+      {effectivePreferences.nav === "topnav" ? (
         <TopNavigation
           currentView={currentView}
           itemCount={items.length}
@@ -357,9 +375,9 @@ export function FirelakeShell({
         />
       ) : null}
       <div
-        className={`v-app ${preferences.nav === "topnav" ? "is-topnav" : ""}`}
+        className={`v-app ${effectivePreferences.nav === "topnav" ? "is-topnav" : ""}`}
       >
-        {preferences.nav === "sidebar" ? (
+        {effectivePreferences.nav === "sidebar" ? (
           <SidebarNavigation
             currentView={currentView}
             itemCount={items.length}
@@ -383,7 +401,7 @@ export function FirelakeShell({
             ) : null}
 
             {currentView === "overview" ? (
-              preferences.overview === "dense" ? (
+              effectivePreferences.overview === "dense" ? (
                 <OverviewDensePage
                   inProgressItems={inProgressItems}
                   items={items}
@@ -417,7 +435,7 @@ export function FirelakeShell({
                 filters={filters}
                 isLoading={isLoading}
                 items={items}
-                libraryView={preferences.libraryView}
+                libraryView={effectivePreferences.libraryView}
                 onChangeFilter={onChangeFilter}
                 onChangeLibraryView={(value) =>
                   updatePreference("libraryView", value)
@@ -475,9 +493,17 @@ export function FirelakeShell({
             {currentView === "settings" ? (
               <SettingsPage
                 onChangePreference={updatePreference}
-                preferences={preferences}
+                onCompleteAuthentication={onCompleteAuthentication}
+                onOpenRefreshStatus={() => navigate("refresh")}
+                onSignOutAuthentication={onSignOutAuthentication}
+                onStartAuthentication={onStartAuthentication}
+                onStartRefresh={onStartRefresh}
+                onUpdateSettings={onUpdateSettings}
+                preferences={effectivePreferences}
                 settingsSection={settingsSection}
+                settings={settings}
                 setSettingsSection={setSettingsSection}
+                isRefreshing={isRefreshing}
               />
             ) : null}
           </main>
@@ -2076,132 +2102,906 @@ function RefreshPage({
 
 function SettingsPage({
   onChangePreference,
+  onCompleteAuthentication,
+  onOpenRefreshStatus,
+  onSignOutAuthentication,
+  onStartAuthentication,
+  onStartRefresh,
+  onUpdateSettings,
   preferences,
   settingsSection,
+  settings,
   setSettingsSection,
+  isRefreshing,
 }: {
   onChangePreference: <Key extends keyof ShellPreferences>(
     key: Key,
     value: ShellPreferences[Key],
   ) => void;
+  onCompleteAuthentication: (
+    sessionId: string,
+    responseUrl: string,
+  ) => Promise<void>;
+  onOpenRefreshStatus: () => void;
+  onSignOutAuthentication: () => Promise<void>;
+  onStartAuthentication: (
+    locale: string,
+  ) => Promise<StartAudibleAuthenticationResponse>;
+  onStartRefresh: () => void;
+  onUpdateSettings: (request: UpdateSettingsRequest) => Promise<unknown>;
   preferences: ShellPreferences;
   settingsSection: SettingsSection;
+  settings: SettingsResponse | null;
   setSettingsSection: (value: SettingsSection) => void;
+  isRefreshing: boolean;
 }) {
+  const currentSettings = settings ?? createFallbackSettings(preferences);
+  const [authLocale, setAuthLocale] = useState(
+    (currentSettings.audibleAuthentication.locale ?? "us").toUpperCase(),
+  );
+  const [authPrompt, setAuthPrompt] =
+    useState<StartAudibleAuthenticationResponse | null>(null);
+  const [authResponseUrl, setAuthResponseUrl] = useState("");
+  const [authActionError, setAuthActionError] = useState<string | null>(null);
+  const [isAuthWorking, setIsAuthWorking] = useState(false);
+  const [perCreditValueDraft, setPerCreditValueDraft] = useState(
+    currentSettings.costBasis.perCreditValue.toFixed(2),
+  );
+
+  useEffect(() => {
+    setAuthLocale(
+      (currentSettings.audibleAuthentication.locale ?? "us").toUpperCase(),
+    );
+  }, [currentSettings.audibleAuthentication.locale]);
+
+  useEffect(() => {
+    setPerCreditValueDraft(currentSettings.costBasis.perCreditValue.toFixed(2));
+  }, [currentSettings.costBasis.perCreditValue]);
+
+  useEffect(() => {
+    if (currentSettings.audibleAuthentication.status === "authenticated") {
+      setAuthPrompt(null);
+      setAuthResponseUrl("");
+      setAuthActionError(null);
+    }
+  }, [currentSettings.audibleAuthentication.status]);
+
+  async function applySettingsUpdate(request: UpdateSettingsRequest) {
+    try {
+      await onUpdateSettings(request);
+      setAuthActionError(null);
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error ? error.message : "Settings update failed.",
+      );
+    }
+  }
+
+  async function handleStartAuth() {
+    setIsAuthWorking(true);
+
+    try {
+      const prompt = await onStartAuthentication(authLocale.toLowerCase());
+      setAuthPrompt(prompt);
+      setAuthActionError(null);
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be started.",
+      );
+    } finally {
+      setIsAuthWorking(false);
+    }
+  }
+
+  async function handleCompleteAuth() {
+    if (authPrompt === null || authResponseUrl.trim().length === 0) {
+      setAuthActionError(
+        "Paste the final Audible response URL to complete sign-in.",
+      );
+      return;
+    }
+
+    setIsAuthWorking(true);
+
+    try {
+      await onCompleteAuthentication(
+        authPrompt.sessionId,
+        authResponseUrl.trim(),
+      );
+      setAuthPrompt(null);
+      setAuthResponseUrl("");
+      setAuthActionError(null);
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be completed.",
+      );
+    } finally {
+      setIsAuthWorking(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setIsAuthWorking(true);
+
+    try {
+      await onSignOutAuthentication();
+      setAuthPrompt(null);
+      setAuthResponseUrl("");
+      setAuthActionError(null);
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error ? error.message : "Audible sign-out failed.",
+      );
+    } finally {
+      setIsAuthWorking(false);
+    }
+  }
+
+  const settingsNavItems: readonly {
+    id: SettingsSection;
+    label: string;
+  }[] = [
+    { id: "authentication", label: "Audible authentication" },
+    { id: "refresh", label: "Refresh" },
+    { id: "cost-basis", label: "Cost basis" },
+    { id: "local-data", label: "Local data" },
+    { id: "archive-export", label: "Archive export" },
+    { id: "interface", label: "Interface defaults" },
+  ];
+
   return (
     <div className="v-settings-layout">
       <aside className="v-settings-nav">
-        <button
-          type="button"
-          className={`v-nav-item ${settingsSection === "interface" ? "is-active" : ""}`}
-          onClick={() => setSettingsSection("interface")}
-        >
-          <span>Interface defaults</span>
-        </button>
+        <div className="v-stack-xs">
+          <div className="v-eyebrow">Settings · Solid v1</div>
+          {settingsNavItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`v-nav-item ${settingsSection === item.id ? "is-active" : ""}`}
+              onClick={() => setSettingsSection(item.id)}
+            >
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="v-card v-card-body">
+          <p className="v-body-copy">
+            Solid v1 settings cover only local operation and interpretation per
+            ADR 0045.
+          </p>
+        </div>
       </aside>
       <section className="v-stack-md">
-        <article className="v-card">
-          <div className="v-card-head">
-            <div>
-              <div className="v-eyebrow">Interface defaults</div>
-              <h2 className="v-card-title">
-                Prototype-visible display preferences
-              </h2>
+        {settingsSection === "authentication" ? (
+          <article className="v-card">
+            <div className="v-card-head">
+              <div>
+                <div className="v-eyebrow">Audible authentication</div>
+                <h2 className="v-card-title">External-browser session</h2>
+              </div>
+              <span
+                className={`v-pill ${currentSettings.audibleAuthentication.status === "authenticated" ? "is-accent" : "is-info"}`}
+              >
+                {currentSettings.audibleAuthentication.status ===
+                "authenticated"
+                  ? "Active"
+                  : "Needs sign-in"}
+              </span>
             </div>
-            <span className="v-pill is-info">Local only</span>
-          </div>
-          <div className="v-card-body v-stack-md">
-            <PreferenceGroup
-              help="Choose whether the shell opens in the signed-off top navigation or the optional operational sidebar."
-              label="Navigation chrome"
-            >
-              <RadioGrid>
-                <RadioCard
-                  checked={preferences.nav === "topnav"}
-                  description="Best when the app is used primarily as a dashboard and review surface."
-                  label="Top navigation"
-                  onClick={() => onChangePreference("nav", "topnav")}
-                />
-                <RadioCard
-                  checked={preferences.nav === "sidebar"}
-                  description="Best when the app is used as a denser operational workspace."
-                  label="Sidebar"
-                  onClick={() => onChangePreference("nav", "sidebar")}
-                />
-              </RadioGrid>
-            </PreferenceGroup>
-            <PreferenceGroup
-              help="Choose whether overview opens as a calm briefing or a denser operations dashboard."
-              label="Overview default"
-            >
-              <RadioGrid>
-                <RadioCard
-                  checked={preferences.overview === "calm"}
-                  description="Narrative scan with fewer competing surfaces."
-                  label="Calm"
-                  onClick={() => onChangePreference("overview", "calm")}
-                />
-                <RadioCard
-                  checked={preferences.overview === "dense"}
-                  description="Maximum telemetry on first load."
-                  label="Data-dense"
-                  onClick={() => onChangePreference("overview", "dense")}
-                />
-              </RadioGrid>
-            </PreferenceGroup>
-            <PreferenceGroup
-              help="Persist either compact inventory browsing or a cover-forward visual scan for the library view."
-              label="Library default view"
-            >
-              <RadioGrid>
-                <RadioCard
-                  checked={preferences.libraryView === "rows"}
-                  description="Fastest path for search, sort, and dense review."
-                  label="Compact rows"
-                  onClick={() => onChangePreference("libraryView", "rows")}
-                />
-                <RadioCard
-                  checked={preferences.libraryView === "cards"}
-                  description="More cover-forward browsing with visual scanning."
-                  label="Card grid"
-                  onClick={() => onChangePreference("libraryView", "cards")}
-                />
-              </RadioGrid>
-            </PreferenceGroup>
-          </div>
-        </article>
+            <div className="v-card-body v-stack-md">
+              <PreferenceGroup
+                help="Verso delegates login to AudibleApi's supported external-browser flow. Passwords never enter Verso."
+                label="Marketplace"
+              >
+                <select
+                  className="v-select"
+                  value={authLocale}
+                  onChange={(event) => setAuthLocale(event.target.value)}
+                >
+                  <option value="US">US</option>
+                  <option value="UK">UK</option>
+                  <option value="CA">CA</option>
+                  <option value="AU">AU</option>
+                </select>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="The active local session is stored on this machine only."
+                label="Current session"
+              >
+                <div className="v-stack-sm">
+                  <div className="v-select">
+                    <input
+                      className="v-field"
+                      disabled={true}
+                      value={formatAuthenticationIdentity(currentSettings)}
+                    />
+                  </div>
+                  <div className="v-pill-row">
+                    <span className="v-pill is-info">
+                      Locale:{" "}
+                      {(
+                        currentSettings.audibleAuthentication.locale ??
+                        authLocale.toLowerCase()
+                      ).toUpperCase()}
+                    </span>
+                    <span className="v-pill is-dark">
+                      Last auth:{" "}
+                      {formatOptionalUtc(
+                        currentSettings.audibleAuthentication
+                          .lastAuthenticatedAtUtc,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </PreferenceGroup>
+              {authPrompt ? (
+                <PreferenceGroup
+                  help="Open Audible in your browser, finish the login, then paste the final redirected URL here to complete the handoff."
+                  label="Browser handoff"
+                >
+                  <div className="v-stack-sm">
+                    <a
+                      className="v-reference-link"
+                      href={authPrompt.loginUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span>Open Audible sign-in</span>
+                      <span className="v-link-tag">external</span>
+                    </a>
+                    <div className="v-select">
+                      <input
+                        className="v-field"
+                        value={authResponseUrl}
+                        onChange={(event) =>
+                          setAuthResponseUrl(event.target.value)
+                        }
+                        placeholder="Paste the final Audible redirect URL"
+                      />
+                    </div>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className="v-btn v-btn-primary"
+                        disabled={isAuthWorking}
+                        onClick={() => {
+                          void handleCompleteAuth();
+                        }}
+                      >
+                        Complete authentication
+                      </button>
+                    </div>
+                  </div>
+                </PreferenceGroup>
+              ) : null}
+              {authActionError ||
+              currentSettings.audibleAuthentication.lastError ? (
+                <StatusBanner title="Authentication status">
+                  {authActionError ??
+                    currentSettings.audibleAuthentication.lastError ??
+                    "Authentication failed."}
+                </StatusBanner>
+              ) : null}
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="v-btn v-btn-primary"
+                  disabled={isAuthWorking}
+                  onClick={() => {
+                    void handleStartAuth();
+                  }}
+                >
+                  {currentSettings.audibleAuthentication.status ===
+                  "authenticated"
+                    ? "Re-authenticate via AudibleApi"
+                    : "Authenticate via AudibleApi"}
+                </button>
+                <button
+                  type="button"
+                  className="v-btn v-btn-outline"
+                  disabled={
+                    isAuthWorking ||
+                    currentSettings.audibleAuthentication.status !==
+                      "authenticated"
+                  }
+                  onClick={() => {
+                    void handleSignOut();
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </article>
+        ) : null}
 
-        <article className="v-card">
-          <div className="v-card-head">
-            <div>
-              <div className="v-eyebrow">Visual parity references</div>
-              <h2 className="v-card-title">Stable prototype-derived states</h2>
+        {settingsSection === "refresh" ? (
+          <article className="v-card">
+            <div className="v-card-head">
+              <div>
+                <div className="v-eyebrow">Refresh</div>
+                <h2 className="v-card-title">Local app-initiated imports</h2>
+              </div>
+              <button
+                type="button"
+                className="v-btn v-btn-outline v-btn-sm"
+                onClick={onOpenRefreshStatus}
+              >
+                Open refresh status
+              </button>
             </div>
-          </div>
-          <div className="v-card-body v-stack-sm">
-            <p className="v-body-copy">
-              These links mirror the approved prototype state IDs that the
-              screenshot sensor uses. Intentional UI changes should update the
-              handoff and these baselines together.
-            </p>
-            <ul className="v-reference-list">
-              {visualParityStates.map((state) => (
-                <li key={state.id}>
-                  <a
-                    className="v-reference-link"
-                    href={buildVisualParitySearch(state.id)}
-                  >
-                    <span>{state.id}</span>
-                    <span className="v-link-tag">{state.view}</span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </article>
+            <div className="v-card-body v-stack-md">
+              <PreferenceGroup
+                help="`Daily at idle` means Verso can trigger one local refresh when the app is open and idle; it is not a background daemon."
+                label="Refresh trigger"
+              >
+                <RadioGrid>
+                  <RadioCard
+                    checked={currentSettings.refresh.trigger === "manual"}
+                    description="Refresh only when you explicitly start one."
+                    label="Manual"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        refresh: {
+                          ...currentSettings.refresh,
+                          trigger: "manual",
+                        },
+                      });
+                    }}
+                  />
+                  <RadioCard
+                    checked={currentSettings.refresh.trigger === "on-app-start"}
+                    description="Kick off a refresh when Verso opens."
+                    label="On app start"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        refresh: {
+                          ...currentSettings.refresh,
+                          trigger: "on-app-start",
+                        },
+                      });
+                    }}
+                  />
+                  <RadioCard
+                    checked={
+                      currentSettings.refresh.trigger === "daily-at-idle"
+                    }
+                    description="Allow one daily refresh when the local app is idle."
+                    label="Daily at idle"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        refresh: {
+                          ...currentSettings.refresh,
+                          trigger: "daily-at-idle",
+                        },
+                      });
+                    }}
+                  />
+                </RadioGrid>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="Retain titles that disappear from a later successful Audible refresh as no-longer-present items."
+                label="Retention"
+              >
+                <label className="v-library-card-checkbox">
+                  <input
+                    checked={currentSettings.refresh.retainNoLongerPresentItems}
+                    type="checkbox"
+                    onChange={(event) => {
+                      void applySettingsUpdate({
+                        refresh: {
+                          ...currentSettings.refresh,
+                          retainNoLongerPresentItems: event.target.checked,
+                        },
+                      });
+                    }}
+                  />
+                  <span>Retain no-longer-present items</span>
+                </label>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="These snapshot fields are fixed in Solid v1 and shown here for visibility only."
+                label="Selective snapshot fields"
+              >
+                <div className="v-pill-row">
+                  {currentSettings.refresh.selectiveSnapshotFields.map(
+                    (field) => (
+                      <span key={field} className="v-pill is-dark">
+                        {field}
+                      </span>
+                    ),
+                  )}
+                </div>
+              </PreferenceGroup>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="v-btn v-btn-primary"
+                  disabled={isRefreshing}
+                  onClick={onStartRefresh}
+                >
+                  {isRefreshing ? "Refreshing library" : "Start refresh"}
+                </button>
+              </div>
+            </div>
+          </article>
+        ) : null}
+
+        {settingsSection === "cost-basis" ? (
+          <article className="v-card">
+            <div className="v-card-head">
+              <div>
+                <div className="v-eyebrow">Cost basis</div>
+                <h2 className="v-card-title">Credit value interpretation</h2>
+              </div>
+              <span className="v-pill is-info">
+                {currentSettings.costBasis.currencyCode}
+              </span>
+            </div>
+            <div className="v-card-body v-stack-md">
+              <PreferenceGroup
+                help="Cost reports can default to either the configured credit value or the imported list price."
+                label="Default basis"
+              >
+                <RadioGrid>
+                  <RadioCard
+                    checked={
+                      currentSettings.costBasis.defaultBasis ===
+                      "per-credit-value"
+                    }
+                    description="Use your configured per-credit value by default."
+                    label="Per-credit value"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        costBasis: {
+                          ...currentSettings.costBasis,
+                          defaultBasis: "per-credit-value",
+                        },
+                      });
+                    }}
+                  />
+                  <RadioCard
+                    checked={
+                      currentSettings.costBasis.defaultBasis === "list-price"
+                    }
+                    description="Use imported list price where Audible provides it."
+                    label="List price"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        costBasis: {
+                          ...currentSettings.costBasis,
+                          defaultBasis: "list-price",
+                        },
+                      });
+                    }}
+                  />
+                </RadioGrid>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="This value is used whenever the default basis is per-credit value."
+                label="Per-credit value"
+              >
+                <div className="v-stack-sm">
+                  <div className="v-select">
+                    <input
+                      className="v-field"
+                      inputMode="decimal"
+                      value={perCreditValueDraft}
+                      onBlur={() => {
+                        const parsedValue =
+                          Number.parseFloat(perCreditValueDraft);
+
+                        if (!Number.isFinite(parsedValue) || parsedValue < 0) {
+                          setPerCreditValueDraft(
+                            currentSettings.costBasis.perCreditValue.toFixed(2),
+                          );
+                          return;
+                        }
+
+                        void applySettingsUpdate({
+                          costBasis: {
+                            ...currentSettings.costBasis,
+                            perCreditValue: parsedValue,
+                          },
+                        });
+                      }}
+                      onChange={(event) =>
+                        setPerCreditValueDraft(event.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="v-pill-row">
+                    <span className="v-pill is-info">
+                      EFFECTIVE COST · {currentSettings.costBasis.currencyCode}{" "}
+                      {currentSettings.costBasis.perCreditValue.toFixed(2)} /
+                      CREDIT
+                    </span>
+                  </div>
+                </div>
+              </PreferenceGroup>
+            </div>
+          </article>
+        ) : null}
+
+        {settingsSection === "local-data" ? (
+          <article className="v-card">
+            <div className="v-card-head">
+              <div>
+                <div className="v-eyebrow">Local data</div>
+                <h2 className="v-card-title">Storage visibility</h2>
+              </div>
+              <span className="v-pill is-info">SQLite · ADR 0005</span>
+            </div>
+            <div className="v-card-body v-stack-md">
+              <PreferenceGroup
+                help="Verso keeps the local database, raw payloads, and cached assets on this machine."
+                label="Database"
+              >
+                <div className="v-stack-sm">
+                  <div className="v-select">
+                    <input
+                      className="v-field"
+                      disabled={true}
+                      value={currentSettings.localData.databaseLocation}
+                    />
+                  </div>
+                  <div className="v-pill-row">
+                    <span className="v-pill is-dark">
+                      Size:{" "}
+                      {formatBytes(currentSettings.localData.databaseSizeBytes)}
+                    </span>
+                    <span className="v-pill is-dark">
+                      Schema:{" "}
+                      {currentSettings.localData.schemaVersion || "pending"}
+                    </span>
+                    <span className="v-pill is-dark">
+                      Raw payloads: {currentSettings.localData.rawPayloadCount}
+                    </span>
+                  </div>
+                </div>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="Cover images are cached locally for fast render and export fidelity."
+                label="Cover cache"
+              >
+                <div className="v-stack-sm">
+                  <div className="v-select">
+                    <input
+                      className="v-field"
+                      disabled={true}
+                      value={currentSettings.localData.coverCacheLocation}
+                    />
+                  </div>
+                  <div className="v-pill-row">
+                    <span className="v-pill is-dark">
+                      Size:{" "}
+                      {formatBytes(
+                        currentSettings.localData.coverCacheSizeBytes,
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="Companion PDF caching stays deferred in Solid v1."
+                label="Companion PDFs"
+              >
+                <span className="v-pill is-info">
+                  {currentSettings.localData.companionPdfsStatus}
+                </span>
+              </PreferenceGroup>
+            </div>
+          </article>
+        ) : null}
+
+        {settingsSection === "archive-export" ? (
+          <article className="v-card">
+            <div className="v-card-head">
+              <div>
+                <div className="v-eyebrow">Archive export</div>
+                <h2 className="v-card-title">Fidelity-first defaults</h2>
+              </div>
+              <button
+                type="button"
+                className="v-btn v-btn-primary"
+                disabled={true}
+              >
+                Export now
+              </button>
+            </div>
+            <div className="v-card-body v-stack-md">
+              <PreferenceGroup
+                help="JSON remains the archive of record; projection formats are available as convenience outputs."
+                label="Format"
+              >
+                <RadioGrid>
+                  <RadioCard
+                    checked={
+                      currentSettings.archiveExport.format === "json-archive"
+                    }
+                    description="Fidelity-first archive payload."
+                    label="JSON archive"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        archiveExport: {
+                          ...currentSettings.archiveExport,
+                          format: "json-archive",
+                        },
+                      });
+                    }}
+                  />
+                  <RadioCard
+                    checked={
+                      currentSettings.archiveExport.format === "csv-projection"
+                    }
+                    description="Tabular projection for ad hoc inspection."
+                    label="CSV projection"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        archiveExport: {
+                          ...currentSettings.archiveExport,
+                          format: "csv-projection",
+                        },
+                      });
+                    }}
+                  />
+                  <RadioCard
+                    checked={
+                      currentSettings.archiveExport.format ===
+                      "markdown-projection"
+                    }
+                    description="Human-readable projection output."
+                    label="Markdown projection"
+                    onClick={() => {
+                      void applySettingsUpdate({
+                        archiveExport: {
+                          ...currentSettings.archiveExport,
+                          format: "markdown-projection",
+                        },
+                      });
+                    }}
+                  />
+                </RadioGrid>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="Raw Audible payloads stay included by default for archive fidelity."
+                label="Payload fidelity"
+              >
+                <label className="v-library-card-checkbox">
+                  <input
+                    checked={currentSettings.archiveExport.includeRawPayloads}
+                    type="checkbox"
+                    onChange={(event) => {
+                      void applySettingsUpdate({
+                        archiveExport: {
+                          ...currentSettings.archiveExport,
+                          includeRawPayloads: event.target.checked,
+                        },
+                      });
+                    }}
+                  />
+                  <span>Include raw payloads</span>
+                </label>
+              </PreferenceGroup>
+              <PreferenceGroup
+                help="Choose how cover images should be packaged alongside the archive."
+                label="Cover images"
+              >
+                <select
+                  className="v-select"
+                  value={currentSettings.archiveExport.coverImages}
+                  onChange={(event) => {
+                    void applySettingsUpdate({
+                      archiveExport: {
+                        ...currentSettings.archiveExport,
+                        coverImages: event.target.value,
+                      },
+                    });
+                  }}
+                >
+                  <option value="sibling-folder">Sibling folder</option>
+                  <option value="embedded-base64">Embedded base64</option>
+                  <option value="omit">Omit</option>
+                </select>
+              </PreferenceGroup>
+              <button
+                type="button"
+                className="v-btn v-btn-outline"
+                disabled={true}
+              >
+                Restore… · deferred
+              </button>
+            </div>
+          </article>
+        ) : null}
+
+        {settingsSection === "interface" ? (
+          <>
+            <article className="v-card">
+              <div className="v-card-head">
+                <div>
+                  <div className="v-eyebrow">Interface defaults</div>
+                  <h2 className="v-card-title">
+                    Prototype-visible display preferences
+                  </h2>
+                </div>
+                <span className="v-pill is-info">Persisted</span>
+              </div>
+              <div className="v-card-body v-stack-md">
+                <PreferenceGroup
+                  help="Choose whether the shell opens in the signed-off top navigation or the optional operational sidebar."
+                  label="Navigation chrome"
+                >
+                  <RadioGrid>
+                    <RadioCard
+                      checked={preferences.nav === "topnav"}
+                      description="Best when the app is used primarily as a dashboard and review surface."
+                      label="Top navigation"
+                      onClick={() => onChangePreference("nav", "topnav")}
+                    />
+                    <RadioCard
+                      checked={preferences.nav === "sidebar"}
+                      description="Best when the app is used as a denser operational workspace."
+                      label="Sidebar"
+                      onClick={() => onChangePreference("nav", "sidebar")}
+                    />
+                  </RadioGrid>
+                </PreferenceGroup>
+                <PreferenceGroup
+                  help="Choose whether overview opens as a calm briefing or a denser operations dashboard."
+                  label="Overview default"
+                >
+                  <RadioGrid>
+                    <RadioCard
+                      checked={preferences.overview === "calm"}
+                      description="Narrative scan with fewer competing surfaces."
+                      label="Calm"
+                      onClick={() => onChangePreference("overview", "calm")}
+                    />
+                    <RadioCard
+                      checked={preferences.overview === "dense"}
+                      description="Maximum telemetry on first load."
+                      label="Data-dense"
+                      onClick={() => onChangePreference("overview", "dense")}
+                    />
+                  </RadioGrid>
+                </PreferenceGroup>
+                <PreferenceGroup
+                  help="Persist either compact inventory browsing or a cover-forward visual scan for the library view."
+                  label="Library default view"
+                >
+                  <RadioGrid>
+                    <RadioCard
+                      checked={preferences.libraryView === "rows"}
+                      description="Fastest path for search, sort, and dense review."
+                      label="Compact rows"
+                      onClick={() => onChangePreference("libraryView", "rows")}
+                    />
+                    <RadioCard
+                      checked={preferences.libraryView === "cards"}
+                      description="More cover-forward browsing with visual scanning."
+                      label="Card grid"
+                      onClick={() => onChangePreference("libraryView", "cards")}
+                    />
+                  </RadioGrid>
+                </PreferenceGroup>
+              </div>
+            </article>
+
+            <article className="v-card">
+              <div className="v-card-head">
+                <div>
+                  <div className="v-eyebrow">Visual parity references</div>
+                  <h2 className="v-card-title">
+                    Stable prototype-derived states
+                  </h2>
+                </div>
+              </div>
+              <div className="v-card-body v-stack-sm">
+                <p className="v-body-copy">
+                  These links mirror the approved prototype state IDs that the
+                  screenshot sensor uses. Intentional UI changes should update
+                  the handoff and these baselines together.
+                </p>
+                <ul className="v-reference-list">
+                  {visualParityStates.map((state) => (
+                    <li key={state.id}>
+                      <a
+                        className="v-reference-link"
+                        href={buildVisualParitySearch(state.id)}
+                      >
+                        <span>{state.id}</span>
+                        <span className="v-link-tag">{state.view}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+          </>
+        ) : null}
       </section>
     </div>
   );
+}
+
+function createFallbackSettings(
+  preferences: ShellPreferences,
+): SettingsResponse {
+  return {
+    interfacePreferences: {
+      navChrome: preferences.nav,
+      defaultOverviewVariant: preferences.overview,
+      defaultLibraryView: preferences.libraryView,
+    },
+    audibleAuthentication: {
+      status: "not-authenticated",
+      locale: null,
+      lastAuthenticatedAtUtc: null,
+      lastError: null,
+    },
+    refresh: {
+      trigger: "manual",
+      retainNoLongerPresentItems: true,
+      selectiveSnapshotFields: [
+        "percent-complete",
+        "presence",
+        "companion-pdf-available",
+        "is-returnable",
+      ],
+    },
+    costBasis: {
+      defaultBasis: "per-credit-value",
+      perCreditValue: 14.95,
+      currencyCode: "USD",
+    },
+    localData: {
+      databaseLocation: "",
+      databaseSizeBytes: 0,
+      schemaVersion: "",
+      rawPayloadCount: 0,
+      coverCacheLocation: "",
+      coverCacheSizeBytes: 0,
+      companionPdfsStatus: "deferred",
+    },
+    archiveExport: {
+      format: "json-archive",
+      includeRawPayloads: true,
+      coverImages: "sibling-folder",
+      restoreSupported: false,
+    },
+  };
+}
+
+function formatAuthenticationIdentity(settings: SettingsResponse): string {
+  return settings.audibleAuthentication.status === "authenticated"
+    ? `Audible ${settings.audibleAuthentication.locale?.toUpperCase() ?? ""} session active`
+    : "No active Audible session";
+}
+
+function formatOptionalUtc(value: string | null): string {
+  return value ? formatUtc(value) : "Never";
+}
+
+function formatBytes(sizeBytes: number): string {
+  if (sizeBytes <= 0) {
+    return "0 B";
+  }
+
+  if (sizeBytes >= 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  if (sizeBytes >= 1024) {
+    return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${sizeBytes} B`;
 }
 
 function Brand() {
@@ -2504,7 +3304,9 @@ function PlaceholderPage({
   );
 }
 
-function getInitialShellState(): InitialShellState {
+function getInitialShellState(
+  preferences: ShellPreferences,
+): InitialShellState {
   const parityStateId = readVisualParityStateId(window.location.search);
   const parityState = parityStateId
     ? getVisualParityState(parityStateId)
@@ -2521,53 +3323,10 @@ function getInitialShellState(): InitialShellState {
 
   return {
     parityStateId: null,
-    preferences: normalizeStoredPreferences(readStoredShellPreferences()),
+    preferences,
     settingsSection: "interface",
     view: "overview",
   };
-}
-
-function normalizeStoredPreferences(
-  storedPreferences: Partial<Record<keyof ShellPreferences, unknown>>,
-): ShellPreferences {
-  return {
-    libraryView:
-      storedPreferences.libraryView === "cards" ||
-      storedPreferences.libraryView === "rows"
-        ? storedPreferences.libraryView
-        : defaultShellPreferences.libraryView,
-    nav:
-      storedPreferences.nav === "sidebar" || storedPreferences.nav === "topnav"
-        ? storedPreferences.nav
-        : defaultShellPreferences.nav,
-    overview:
-      storedPreferences.overview === "dense" ||
-      storedPreferences.overview === "calm"
-        ? storedPreferences.overview
-        : defaultShellPreferences.overview,
-  };
-}
-
-function readStoredShellPreferences(): Partial<
-  Record<keyof ShellPreferences, unknown>
-> {
-  try {
-    const rawValue = window.localStorage.getItem(shellPreferencesStorageKey);
-
-    if (!rawValue) {
-      return {};
-    }
-
-    const parsedValue = JSON.parse(rawValue) as unknown;
-
-    if (typeof parsedValue !== "object" || parsedValue === null) {
-      return {};
-    }
-
-    return parsedValue as Partial<Record<keyof ShellPreferences, unknown>>;
-  } catch {
-    return {};
-  }
 }
 
 function getLatestRefreshJob(

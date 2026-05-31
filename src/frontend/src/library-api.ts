@@ -113,6 +113,111 @@ export type StartLibraryRefreshResponse = {
   job: LibraryRefreshJobDto;
 };
 
+export type InterfacePreferencesSettingsDto = {
+  navChrome: string;
+  defaultOverviewVariant: string;
+  defaultLibraryView: string;
+};
+
+export type AudibleAuthenticationSettingsDto = {
+  status: string;
+  locale: string | null;
+  lastAuthenticatedAtUtc: string | null;
+  lastError: string | null;
+};
+
+export type RefreshSettingsDto = {
+  trigger: string;
+  retainNoLongerPresentItems: boolean;
+  selectiveSnapshotFields: string[];
+};
+
+export type RefreshSettingsMutationDto = {
+  trigger: string;
+  retainNoLongerPresentItems: boolean;
+};
+
+export type CostBasisSettingsDto = {
+  defaultBasis: string;
+  perCreditValue: number;
+  currencyCode: string;
+};
+
+export type CostBasisSettingsMutationDto = {
+  defaultBasis: string;
+  perCreditValue: number;
+  currencyCode: string;
+};
+
+export type LocalDataSettingsDto = {
+  databaseLocation: string;
+  databaseSizeBytes: number;
+  schemaVersion: string;
+  rawPayloadCount: number;
+  coverCacheLocation: string;
+  coverCacheSizeBytes: number;
+  companionPdfsStatus: string;
+};
+
+export type ArchiveExportSettingsDto = {
+  format: string;
+  includeRawPayloads: boolean;
+  coverImages: string;
+  restoreSupported: boolean;
+};
+
+export type ArchiveExportSettingsMutationDto = {
+  format: string;
+  includeRawPayloads: boolean;
+  coverImages: string;
+};
+
+export type SettingsResponse = {
+  interfacePreferences: InterfacePreferencesSettingsDto;
+  audibleAuthentication: AudibleAuthenticationSettingsDto;
+  refresh: RefreshSettingsDto;
+  costBasis: CostBasisSettingsDto;
+  localData: LocalDataSettingsDto;
+  archiveExport: ArchiveExportSettingsDto;
+};
+
+export type UpdateSettingsRequest = {
+  interfacePreferences?: InterfacePreferencesSettingsDto;
+  refresh?: RefreshSettingsMutationDto;
+  costBasis?: CostBasisSettingsMutationDto;
+  archiveExport?: ArchiveExportSettingsMutationDto;
+};
+
+export type AudibleSignInCookieDto = {
+  name: string;
+  value: string;
+  domain: string;
+  path: string;
+};
+
+export type StartAudibleAuthenticationRequest = {
+  locale: string;
+};
+
+export type StartAudibleAuthenticationResponse = {
+  sessionId: string;
+  status: string;
+  locale: string;
+  loginUrl: string;
+  signInCookies: AudibleSignInCookieDto[];
+};
+
+export type CompleteAudibleAuthenticationRequest = {
+  responseUrl: string;
+};
+
+export type AudibleAuthenticationStatusResponse = {
+  status: string;
+  locale: string | null;
+  authenticatedAtUtc: string | null;
+  lastError: string | null;
+};
+
 export type LibraryFilters = {
   search: string;
   presence: string;
@@ -142,6 +247,44 @@ export function createLibraryApi(baseUrl = "") {
       requestJson<LibraryItemDetailResponse>(
         `${baseUrl}/api/library/items/${encodeURIComponent(asin)}`,
       ),
+    getSettings: () => requestJson<SettingsResponse>(`${baseUrl}/api/settings`),
+    updateSettings: (request: UpdateSettingsRequest) =>
+      requestJson<SettingsResponse>(`${baseUrl}/api/settings`, {
+        method: "PUT",
+        body: JSON.stringify(request),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    startAuthentication: (request: StartAudibleAuthenticationRequest) =>
+      requestJson<StartAudibleAuthenticationResponse>(
+        `${baseUrl}/api/audible-authentication/sessions`,
+        {
+          method: "POST",
+          body: JSON.stringify(request),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    completeAuthentication: (
+      sessionId: string,
+      request: CompleteAudibleAuthenticationRequest,
+    ) =>
+      requestJson<AudibleAuthenticationStatusResponse>(
+        `${baseUrl}/api/audible-authentication/sessions/${encodeURIComponent(sessionId)}/complete`,
+        {
+          method: "POST",
+          body: JSON.stringify(request),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    signOutAuthentication: () =>
+      requestNoContent(`${baseUrl}/api/audible-authentication/session`, {
+        method: "DELETE",
+      }),
     startRefresh: () =>
       requestJson<StartLibraryRefreshResponse>(
         `${baseUrl}/api/library/refresh-jobs`,
@@ -185,6 +328,23 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+async function requestNoContent(
+  url: string,
+  init?: RequestInit,
+): Promise<void> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      ...init?.headers,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
 }
 
 async function readErrorMessage(response: Response): Promise<string> {

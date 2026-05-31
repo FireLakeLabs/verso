@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Verso.Api;
 
@@ -10,9 +11,11 @@ using Verso.Api;
 namespace Verso.Api.Persistence.Migrations
 {
     [DbContext(typeof(VersoDbContext))]
-    partial class VersoDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260531140418_AddSettingsState")]
+    partial class AddSettingsState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -329,26 +332,6 @@ namespace Verso.Api.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ArchiveExportCoverImages")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ArchiveExportFormat")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CostBasisCurrencyCode")
-                        .IsRequired()
-                        .HasMaxLength(8)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DefaultCostBasis")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("DefaultLibraryView")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -359,24 +342,10 @@ namespace Verso.Api.Persistence.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("IncludeRawPayloadsInArchive")
-                        .HasColumnType("INTEGER");
-
                     b.Property<string>("NavChrome")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("PerCreditValueInCents")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("RefreshTrigger")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("RetainNoLongerPresentItems")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 

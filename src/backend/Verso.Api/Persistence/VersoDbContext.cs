@@ -11,6 +11,8 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
 
   public DbSet<AudibleAuthenticationStateEntity> AudibleAuthenticationStates => Set<AudibleAuthenticationStateEntity>();
 
+  public DbSet<SettingsStateEntity> Settings => Set<SettingsStateEntity>();
+
   public DbSet<LibraryRefreshJobEntity> LibraryRefreshJobs => Set<LibraryRefreshJobEntity>();
 
   protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +76,18 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
     authenticationState.HasKey(item => item.Id);
     authenticationState.Property(item => item.Locale).HasMaxLength(16);
     authenticationState.Property(item => item.IdentityFilePath).HasMaxLength(1024);
+
+    var settings = modelBuilder.Entity<SettingsStateEntity>();
+    settings.ToTable("Settings");
+    settings.HasKey(item => item.Id);
+    settings.Property(item => item.NavChrome).HasMaxLength(32);
+    settings.Property(item => item.DefaultOverviewVariant).HasMaxLength(32);
+    settings.Property(item => item.DefaultLibraryView).HasMaxLength(32);
+    settings.Property(item => item.RefreshTrigger).HasMaxLength(32);
+    settings.Property(item => item.DefaultCostBasis).HasMaxLength(32);
+    settings.Property(item => item.CostBasisCurrencyCode).HasMaxLength(8);
+    settings.Property(item => item.ArchiveExportFormat).HasMaxLength(32);
+    settings.Property(item => item.ArchiveExportCoverImages).HasMaxLength(32);
 
     var refreshJob = modelBuilder.Entity<LibraryRefreshJobEntity>();
     refreshJob.ToTable("LibraryRefreshJobs");
@@ -208,6 +222,33 @@ public sealed class AudibleAuthenticationStateEntity
   public string IdentityFilePath { get; set; } = string.Empty;
 
   public DateTimeOffset AuthenticatedAtUtc { get; set; }
+}
+
+public sealed class SettingsStateEntity
+{
+  public int Id { get; set; }
+
+  public string NavChrome { get; set; } = "topnav";
+
+  public string DefaultOverviewVariant { get; set; } = "calm";
+
+  public string DefaultLibraryView { get; set; } = "rows";
+
+  public string RefreshTrigger { get; set; } = "manual";
+
+  public bool RetainNoLongerPresentItems { get; set; } = true;
+
+  public string DefaultCostBasis { get; set; } = "per-credit-value";
+
+  public int PerCreditValueInCents { get; set; } = 1495;
+
+  public string CostBasisCurrencyCode { get; set; } = "USD";
+
+  public string ArchiveExportFormat { get; set; } = "json-archive";
+
+  public bool IncludeRawPayloadsInArchive { get; set; } = true;
+
+  public string ArchiveExportCoverImages { get; set; } = "sibling-folder";
 }
 
 public sealed class LibraryRefreshJobEntity
