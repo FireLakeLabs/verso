@@ -9,15 +9,27 @@ import {
   Line,
   ReferenceLine,
   ResponsiveContainer,
+  Scatter,
+  ScatterChart,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { LibraryItemDto, LibraryRefreshJobDto } from "../library-api";
+import type {
+  LibraryItemDto,
+  LibraryRefreshJobDto,
+  SettingsResponse,
+} from "../library-api";
 import {
   createAuthorConcentrationReport,
   type AuthorConcentrationEntry,
 } from "../reports/author-concentration-report";
+import {
+  createCostPerHourReport,
+  type CostBasisSelection,
+  type CostPerHourEntry,
+  type MissingCostReason,
+} from "../reports/cost-per-hour-report";
 import {
   createGenreTreemapReport,
   type GenreTreemapNode,
@@ -38,6 +50,7 @@ type ReportNavigationView =
   | "findings"
   | "report-authors"
   | "report-cadence"
+  | "report-cost"
   | "report-genre"
   | "report-keywords"
   | "report-narrators"
@@ -55,6 +68,12 @@ type ListeningCadencePageProps = {
 };
 
 type RuntimeDistributionPageProps = {
+  items: readonly LibraryItemDto[];
+  onNavigate: (view: ReportNavigationView) => void;
+};
+
+type CostPerHourPageProps = {
+  costBasis: SettingsResponse["costBasis"];
   items: readonly LibraryItemDto[];
   onNavigate: (view: ReportNavigationView) => void;
 };
@@ -110,10 +129,10 @@ export function ReportsHubPage({ onNavigate }: ReportsHubPageProps) {
           view: "report-narrators" as const,
         },
         {
-          body: "Cost basis settings and the final view still extend from the shared reports shell.",
-          label: "Queue",
+          body: "Explicit Cost Basis calculations with missing list prices kept visible.",
+          label: "Live now",
           title: "Cost per hour",
-          view: "reports" as const,
+          view: "report-cost" as const,
         },
       ].map((entry) => (
         <article key={entry.title} className="v-route-tile">
@@ -125,12 +144,261 @@ export function ReportsHubPage({ onNavigate }: ReportsHubPageProps) {
             className="v-inline-link"
             onClick={() => onNavigate(entry.view)}
           >
-            {entry.view === "reports" ? "Stay in reports hub" : "Open report"}
+            Open report
             <ArrowRight aria-hidden="true" className="size-4" />
           </button>
         </article>
       ))}
     </section>
+  );
+}
+
+export function CostPerHourPage({
+  costBasis,
+  items,
+  onNavigate,
+}: CostPerHourPageProps) {
+  const [selectedBasis, setSelectedBasis] = useState<CostBasisSelection>(
+    resolveCostBasisSelection(costBasis.defaultBasis),
+  );
+  const report = useMemo(
+    () =>
+      createCostPerHourReport({
+        items,
+        selectedBasis,
+        settings: costBasis,
+      }),
+    [costBasis, items, selectedBasis],
+  );
+  const lowestCostPerHour = report.bestValueItems[0]?.costPerHour ?? null;
+  const highestCostPerHour = report.highCostShortList[0]?.costPerHour ?? null;
+
+  return (
+    <div className="v-stack-md">
+      <div className="v-metric-grid v-metric-grid-4">
+        <ReportStatCard
+          accent
+          detail={
+            selectedBasis === "per-credit-value"
+              ? `${formatCurrency(costBasis.perCreditValue, report.currencyCode)} per credit`
+              : "using imported Audible price datapoints"
+          }
+          label="Cost basis"
+          value={report.basisLabel}
+        />
+        <ReportStatCard
+          detail="included in calculations"
+          label="Known costs"
+          value={String(report.knownCostItemCount)}
+        />
+        <ReportStatCard
+          detail="kept out of rankings"
+          label="Missing datapoints"
+          value={String(report.missingCostItems.length)}
+        />
+        <ReportStatCard
+          detail={
+            highestCostPerHour === null
+              ? "waiting on cost and runtime"
+              : `highest ${formatCurrency(highestCostPerHour, report.currencyCode)} / h`
+          }
+          label="Best value"
+          value={
+            lowestCostPerHour === null
+              ? "-"
+              : `${formatCurrency(lowestCostPerHour, report.currencyCode)} / h`
+          }
+        />
+      </div>
+
+      <article className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">Cost per hour · cost basis</div>
+            <h2 className="v-card-title">Cost versus runtime</h2>
+          </div>
+          <div style={{ alignItems: "center", display: "flex", gap: 12 }}>
+            <span className="v-pill is-info">{report.currencyCode}</span>
+            <div
+              style={{
+                border: "1px solid var(--line-2)",
+                display: "inline-flex",
+              }}
+            >
+              {(
+                [
+                  ["per-credit-value", "Per credit"],
+                  ["list-price", "List price"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  className="v-btn v-btn-sm"
+                  style={{
+                    background:
+                      selectedBasis === value ? "var(--ink-950)" : "white",
+                    borderLeft:
+                      value === "per-credit-value"
+                        ? "none"
+                        : "1px solid var(--line-2)",
+                    borderRadius: 0,
+                    color: selectedBasis === value ? "white" : "var(--fg-2)",
+                  }}
+                  onClick={() => setSelectedBasis(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="v-card-body" style={{ height: 380 }}>
+          {report.chartPoints.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart
+                margin={{ bottom: 20, left: 8, right: 24, top: 16 }}
+              >
+                <CartesianGrid stroke="var(--line-1)" vertical={false} />
+                <XAxis
+                  dataKey="runtimeHours"
+                  name="Runtime"
+                  stroke="var(--fg-3)"
+                  tick={{ fill: "var(--fg-3)", fontSize: 10 }}
+                  tickFormatter={(value: number) => `${value} h`}
+                  type="number"
+                />
+                <YAxis
+                  dataKey="costPerHour"
+                  name="Cost per hour"
+                  stroke="var(--fg-3)"
+                  tick={{ fill: "var(--fg-3)", fontSize: 10 }}
+                  tickFormatter={(value: number) =>
+                    formatCurrency(value, report.currencyCode)
+                  }
+                  type="number"
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--bg-1)",
+                    border: "1px solid var(--line-1)",
+                    borderRadius: 2,
+                    color: "var(--fg-1)",
+                  }}
+                  formatter={(value, name, item) => {
+                    const point = item.payload as CostPerHourEntry;
+
+                    if (name === "Cost per hour") {
+                      return [
+                        `${formatCurrency(Number(value), report.currencyCode)} / h`,
+                        point.title,
+                      ];
+                    }
+
+                    return [`${value} h`, "Runtime"];
+                  }}
+                />
+                <Scatter
+                  data={report.chartPoints}
+                  fill="var(--chart-2)"
+                  line={{ stroke: "var(--line-2)", strokeWidth: 1 }}
+                />
+              </ScatterChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="v-empty-inline">
+              Refresh the library with runtime and cost datapoints to populate
+              this report.
+            </p>
+          )}
+        </div>
+      </article>
+
+      <div className="v-two-column-grid">
+        <CostRankTableCard
+          emptyMessage="No cost-per-hour values are available yet."
+          entries={report.bestValueItems}
+          eyebrow="Best value · lowest cost per hour"
+          title="Long value listens"
+          currencyCode={report.currencyCode}
+        />
+        <CostRankTableCard
+          emptyMessage="No high-cost values are available yet."
+          entries={report.highCostShortList}
+          eyebrow="High cost · shortest value"
+          title="High-cost shortlist"
+          currencyCode={report.currencyCode}
+        />
+      </div>
+
+      <article className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">Missing datapoints</div>
+            <h2 className="v-card-title">Not guessed silently</h2>
+          </div>
+          <span className="v-card-meta">
+            {report.missingCostItems.length} items
+          </span>
+        </div>
+        <div className="v-card-body is-tight">
+          {report.missingCostItems.length > 0 ? (
+            <table className="v-table v-table-compact">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Missing datapoint</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.missingCostItems.slice(0, 16).map((item) => (
+                  <tr key={item.asin}>
+                    <td>{item.title}</td>
+                    <td>{formatMissingCostReason(item.reason)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="v-card-body">
+              <p className="v-empty-inline">
+                Every item in the current view has the datapoints needed for
+                this Cost Basis.
+              </p>
+            </div>
+          )}
+        </div>
+      </article>
+
+      <article className="v-card">
+        <div className="v-card-body v-stack-sm">
+          <p className="v-body-copy" style={{ margin: 0 }}>
+            Cost-Per-Hour uses the selected Cost Basis setting. List-price mode
+            only uses imported price amounts; per-credit mode uses the Library
+            Owner&apos;s configured credit value.
+          </p>
+          <div
+            className="v-card-toolbar"
+            style={{ justifyContent: "flex-start" }}
+          >
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onNavigate("report-runtime")}
+            >
+              Runtime distribution
+            </button>
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onNavigate("reports")}
+            >
+              Report queue
+            </button>
+          </div>
+        </div>
+      </article>
+    </div>
   );
 }
 
@@ -1500,6 +1768,68 @@ function ReportTableCard({
   );
 }
 
+function CostRankTableCard({
+  currencyCode,
+  emptyMessage,
+  entries,
+  eyebrow,
+  title,
+}: {
+  currencyCode: string;
+  emptyMessage: string;
+  entries: readonly CostPerHourEntry[];
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <article className="v-card">
+      <div className="v-card-head">
+        <div>
+          <div className="v-eyebrow">{eyebrow}</div>
+          <h2 className="v-card-title">{title}</h2>
+        </div>
+        <span className="v-card-meta">{entries.length} items</span>
+      </div>
+      <div className="v-card-body is-tight">
+        {entries.length > 0 ? (
+          <table className="v-table v-table-compact">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th className="r">Runtime</th>
+                <th className="r">Cost</th>
+                <th className="r">Cost / h</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.slice(0, 12).map((entry) => (
+                <tr key={entry.asin}>
+                  <td>{entry.title}</td>
+                  <td>{entry.authors[0] ?? "Unknown"}</td>
+                  <td className="r v-mono">
+                    {formatRuntimeMinutes(Math.round(entry.runtimeMinutes))}
+                  </td>
+                  <td className="r v-mono">
+                    {formatCurrency(entry.cost, currencyCode)}
+                  </td>
+                  <td className="r v-mono">
+                    {formatCurrency(entry.costPerHour, currencyCode)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="v-card-body">
+            <p className="v-empty-inline">{emptyMessage}</p>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function ReportEmptyState({ message }: { message: string }) {
   return (
     <section className="v-card">
@@ -1671,6 +2001,23 @@ function formatMarkerDetail(label: string, minutes: number | null): string {
 
 function formatMarkerValue(minutes: number | null): string {
   return minutes === null ? "-" : formatRuntimeMinutes(Math.round(minutes));
+}
+
+function resolveCostBasisSelection(value: string): CostBasisSelection {
+  return value === "list-price" ? "list-price" : "per-credit-value";
+}
+
+function formatCurrency(value: number, currencyCode: string): string {
+  return new Intl.NumberFormat("en-US", {
+    currency: currencyCode,
+    maximumFractionDigits: 2,
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+    style: "currency",
+  }).format(value);
+}
+
+function formatMissingCostReason(reason: MissingCostReason): string {
+  return reason === "missing-runtime" ? "Runtime" : "List price";
 }
 
 function formatTooltipCount(

@@ -10,6 +10,7 @@ export type VisualParityView =
   | "overview"
   | "report-authors"
   | "report-cadence"
+  | "report-cost"
   | "report-genre"
   | "report-keywords"
   | "report-narrators"
@@ -80,6 +81,10 @@ export const visualParityStates: readonly VisualParityState[] = [
   }),
   createVisualParityState("report-runtime", {
     view: "report-runtime",
+    preferences: defaultShellPreferences,
+  }),
+  createVisualParityState("report-cost", {
+    view: "report-cost",
     preferences: defaultShellPreferences,
   }),
   createVisualParityState("report-genre", {
