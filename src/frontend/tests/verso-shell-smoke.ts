@@ -83,6 +83,28 @@ try {
       await page.getByRole("heading", { name: "Reports" }).isVisible(),
       true,
     );
+
+    await page
+      .getByRole("button", { name: /^Listening cadence/ })
+      .evaluate((element) => element.click());
+    await page.getByRole("heading", { name: "Listening cadence" }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("heading", { name: "Listening cadence" })
+        .isVisible(),
+      true,
+    );
+
+    await page
+      .getByRole("button", { name: /^Runtime distribution/ })
+      .evaluate((element) => element.click());
+    await page.getByRole("heading", { name: "Runtime distribution" }).waitFor();
+    assert.equal(
+      await page
+        .getByRole("heading", { name: "Runtime distribution" })
+        .isVisible(),
+      true,
+    );
   } finally {
     await browser.close();
   }

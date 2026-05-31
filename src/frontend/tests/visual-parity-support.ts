@@ -161,6 +161,20 @@ const visualScenarios: readonly VisualScenario[] = [
     prototypeMaskSelectors: [".v-brand-sub"],
   },
   {
+    id: "report-cadence",
+    clip: { x: 0, y: 0, width: 1440, height: 980 },
+    maxDiffPixelRatio: 0.13,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
+    id: "report-runtime",
+    clip: { x: 0, y: 0, width: 1440, height: 980 },
+    maxDiffPixelRatio: 0.13,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
     id: "report-genre",
     clip: { x: 0, y: 0, width: 1440, height: 1080 },
     maxDiffPixelRatio: 0.14,
@@ -741,11 +755,23 @@ async function openPrototypeState(
       await choosePrototypeOption(page, "Card grid");
       await navigatePrototype(page, "Library");
       return;
+    case "report-cadence":
+      await openPrototypeReportLink(page, "Listening cadence");
+      await page.getByRole("heading", { name: "Listening cadence" }).waitFor();
+      return;
+    case "report-runtime":
+      await openPrototypeReportLink(page, "Runtime distribution");
+      await page
+        .getByRole("heading", { name: "Runtime distribution" })
+        .waitFor();
+      return;
     case "report-genre":
       await openPrototypeReportLink(page, "Genre treemap");
+      await page.getByRole("heading", { name: "Genre treemap" }).waitFor();
       return;
     case "report-keywords":
       await openPrototypeReportLink(page, "Subject keywords");
+      await page.getByRole("heading", { name: "Subject keywords" }).waitFor();
       return;
     case "settings-interface":
       await openPrototypeSettingsInterface(page);
@@ -803,7 +829,11 @@ async function navigatePrototype(
 
 async function openPrototypeReportLink(
   page: Page,
-  label: "Genre treemap" | "Subject keywords",
+  label:
+    | "Genre treemap"
+    | "Listening cadence"
+    | "Runtime distribution"
+    | "Subject keywords",
 ): Promise<void> {
   const locators = [
     page.locator("a").filter({ hasText: label }),

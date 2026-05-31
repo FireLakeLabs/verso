@@ -34,8 +34,10 @@ import {
   type VisualParityView,
 } from "./visual-parity";
 import {
-  GenreTreemapPage,
+  ListeningCadencePage,
   ReportsHubPage,
+  RuntimeDistributionPage,
+  GenreTreemapPage,
   SubjectKeywordPage,
 } from "./report-pages";
 
@@ -43,6 +45,8 @@ type AppView =
   | VisualParityView
   | "export"
   | "findings"
+  | "report-cadence"
+  | "report-runtime"
   | "refresh"
   | "report-genre"
   | "report-keywords"
@@ -138,6 +142,16 @@ const pageMetaByView: Record<AppView, PageMeta> = {
     eyebrow: "Operations",
     title: "Refresh status",
   },
+  "report-cadence": {
+    crumbs: ["Reports", "Listening cadence"],
+    eyebrow: "Reports",
+    title: "Listening cadence",
+  },
+  "report-runtime": {
+    crumbs: ["Reports", "Runtime distribution"],
+    eyebrow: "Reports",
+    title: "Runtime distribution",
+  },
   "report-genre": {
     crumbs: ["Reports", "Genre treemap"],
     eyebrow: "Reports",
@@ -228,11 +242,11 @@ const sidebarSections: readonly {
   {
     label: "Reports",
     items: [
-      { label: "Listening cadence", view: "reports" },
+      { label: "Listening cadence", view: "report-cadence" },
       { label: "Genre treemap", view: "report-genre" },
       { label: "Author concentration", view: "reports" },
       { label: "Narrator affinity", view: "reports" },
-      { label: "Runtime distribution", view: "reports" },
+      { label: "Runtime distribution", view: "report-runtime" },
       { label: "Subject keywords", view: "report-keywords" },
       { label: "Cost per hour", view: "reports" },
     ],
@@ -464,7 +478,19 @@ export function FirelakeShell({
             ) : null}
 
             {currentView === "reports" ? (
-              <ReportsPage onNavigate={navigate} />
+              <ReportsHubPage onNavigate={navigate} />
+            ) : null}
+
+            {currentView === "report-cadence" ? (
+              <ListeningCadencePage
+                items={items}
+                latestRefreshJob={latestRefreshJob}
+                onNavigate={navigate}
+              />
+            ) : null}
+
+            {currentView === "report-runtime" ? (
+              <RuntimeDistributionPage items={items} onNavigate={navigate} />
             ) : null}
 
             {currentView === "report-genre" ? (
@@ -588,18 +614,6 @@ function TopNavigation({
   );
 }
 
-function isTopNavigationItemActive(itemView: AppView, currentView: AppView) {
-  if (itemView === "reports") {
-    return (
-      currentView === "reports" ||
-      currentView === "report-genre" ||
-      currentView === "report-keywords"
-    );
-  }
-
-  return currentView === itemView;
-}
-
 function SidebarNavigation({
   currentView,
   findingsCount,
@@ -634,7 +648,7 @@ function SidebarNavigation({
                 <button
                   key={item.view}
                   type="button"
-                  className={`v-nav-item ${currentView === item.view ? "is-active" : ""}`}
+                  className={`v-nav-item ${isSidebarNavigationItemActive(currentView, item.view) ? "is-active" : ""}`}
                   onClick={() => onNavigate(item.view)}
                 >
                   <span>{item.label}</span>
@@ -735,9 +749,7 @@ function TopBar({
             </button>
           </>
         ) : null}
-        {currentView === "reports" ||
-        currentView === "report-genre" ||
-        currentView === "report-keywords" ? (
+        {isReportView(currentView) ? (
           <button type="button" className="v-btn v-btn-outline">
             Export view
           </button>
@@ -967,8 +979,13 @@ function OverviewCalmPage({
             {[
               {
                 label: "Listening cadence",
-                tag: "Queued",
-                view: "reports" as const,
+                view: "report-cadence" as const,
+                tag: "Open",
+              },
+              {
+                label: "Runtime distribution",
+                view: "report-runtime" as const,
+                tag: "Open",
               },
               {
                 label: "Genre treemap",
@@ -1960,10 +1977,6 @@ function LibraryCardsPrototypeView({
       )}
     </section>
   );
-}
-
-function ReportsPage({ onNavigate }: { onNavigate: (view: AppView) => void }) {
-  return <ReportsHubPage onNavigate={onNavigate} />;
 }
 
 function FindingsPage({
@@ -3347,6 +3360,31 @@ function getInitialShellState(
     settingsSection: "interface",
     view: "overview",
   };
+}
+
+function isSidebarNavigationItemActive(
+  currentView: AppView,
+  itemView: AppView,
+): boolean {
+  return currentView === itemView;
+}
+
+function isReportView(view: AppView): boolean {
+  return (
+    view === "reports" ||
+    view === "report-cadence" ||
+    view === "report-runtime" ||
+    view === "report-genre" ||
+    view === "report-keywords"
+  );
+}
+
+function isTopNavigationItemActive(itemView: AppView, currentView: AppView) {
+  if (itemView === "reports") {
+    return isReportView(currentView);
+  }
+
+  return currentView === itemView;
 }
 
 function getLatestRefreshJob(
