@@ -8,6 +8,8 @@ export type LibraryViewMode = (typeof libraryViewValues)[number];
 export type VisualParityView =
   | "library"
   | "overview"
+  | "report-cadence"
+  | "report-runtime"
   | "report-genre"
   | "report-keywords"
   | "settings";
@@ -65,6 +67,14 @@ export const visualParityStates: readonly VisualParityState[] = [
       ...defaultShellPreferences,
       libraryView: "cards",
     },
+  }),
+  createVisualParityState("report-cadence", {
+    view: "report-cadence",
+    preferences: defaultShellPreferences,
+  }),
+  createVisualParityState("report-runtime", {
+    view: "report-runtime",
+    preferences: defaultShellPreferences,
   }),
   createVisualParityState("report-genre", {
     view: "report-genre",

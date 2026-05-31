@@ -46,6 +46,8 @@ describe("visual parity shell model", () => {
         "overview-sidebar-calm",
         "library-rows",
         "library-cards",
+        "report-cadence",
+        "report-runtime",
         "report-genre",
         "report-keywords",
         "settings-interface",
@@ -97,6 +99,20 @@ describe("visual parity shell model", () => {
           libraryView: "cards",
         },
         {
+          id: "report-cadence",
+          view: "report-cadence",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
+          id: "report-runtime",
+          view: "report-runtime",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
           id: "report-genre",
           view: "report-genre",
           nav: "topnav",
@@ -133,7 +149,7 @@ describe("visual parity shell model", () => {
     assert.equal(readVisualParityStateId("?nav=topnav"), null);
     assert.deepEqual(
       getVisualParityState("settings-interface"),
-      visualParityStates[7],
+      visualParityStates[9],
     );
     assert.equal(getVisualParityState("missing-state"), null);
   });
