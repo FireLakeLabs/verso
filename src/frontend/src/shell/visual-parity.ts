@@ -5,7 +5,12 @@ const libraryViewValues = ["rows", "cards"] as const;
 export type NavigationChrome = (typeof navigationChromeValues)[number];
 export type OverviewVariant = (typeof overviewVariantValues)[number];
 export type LibraryViewMode = (typeof libraryViewValues)[number];
-export type VisualParityView = "overview" | "library" | "settings";
+export type VisualParityView =
+  | "library"
+  | "overview"
+  | "report-genre"
+  | "report-keywords"
+  | "settings";
 
 export type ShellPreferences = {
   nav: NavigationChrome;
@@ -60,6 +65,14 @@ export const visualParityStates: readonly VisualParityState[] = [
       ...defaultShellPreferences,
       libraryView: "cards",
     },
+  }),
+  createVisualParityState("report-genre", {
+    view: "report-genre",
+    preferences: defaultShellPreferences,
+  }),
+  createVisualParityState("report-keywords", {
+    view: "report-keywords",
+    preferences: defaultShellPreferences,
   }),
   createVisualParityState("settings-interface", {
     view: "settings",

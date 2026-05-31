@@ -161,6 +161,20 @@ const visualScenarios: readonly VisualScenario[] = [
     prototypeMaskSelectors: [".v-brand-sub"],
   },
   {
+    id: "report-genre",
+    clip: { x: 0, y: 0, width: 1440, height: 1080 },
+    maxDiffPixelRatio: 0.14,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
+    id: "report-keywords",
+    clip: { x: 0, y: 0, width: 1440, height: 980 },
+    maxDiffPixelRatio: 0.14,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
     id: "settings-interface",
     clip: { x: 0, y: 0, width: 1440, height: 900 },
     maxDiffPixelRatio: 0.08,
@@ -727,6 +741,12 @@ async function openPrototypeState(
       await choosePrototypeOption(page, "Card grid");
       await navigatePrototype(page, "Library");
       return;
+    case "report-genre":
+      await openPrototypeReportLink(page, "Genre treemap");
+      return;
+    case "report-keywords":
+      await openPrototypeReportLink(page, "Subject keywords");
+      return;
     case "settings-interface":
       await openPrototypeSettingsInterface(page);
       return;
@@ -751,23 +771,58 @@ async function choosePrototypeOption(page: Page, label: string): Promise<void> {
 
 async function navigatePrototype(
   page: Page,
-  label: "Library" | "Overview" | "Settings",
+  label:
+    | "Genre treemap"
+    | "Library"
+    | "Overview"
+    | "Settings"
+    | "Subject keywords",
 ): Promise<void> {
   const names =
     label === "Library"
       ? [/^Library$/, /^All items$/]
-      : [new RegExp(`^${label}$`)];
+      : [new RegExp(escapeRegExp(label))];
 
   for (const name of names) {
-    const locator = page.getByRole("button", { name });
+    const locators = [
+      page.getByRole("button", { name }),
+      page.getByRole("link", { name }),
+      page.locator("button, a").filter({ hasText: label }),
+    ];
 
+    for (const locator of locators) {
+      if ((await locator.count()) > 0) {
+        await locator.first().click();
+        return;
+      }
+    }
+  }
+
+  throw new Error(`Could not navigate prototype to ${label}.`);
+}
+
+async function openPrototypeReportLink(
+  page: Page,
+  label: "Genre treemap" | "Subject keywords",
+): Promise<void> {
+  const locators = [
+    page.locator("a").filter({ hasText: label }),
+    page.locator("button").filter({ hasText: label }),
+    page.locator("button, a").filter({ hasText: label }),
+  ];
+
+  for (const locator of locators) {
     if ((await locator.count()) > 0) {
       await locator.first().click();
       return;
     }
   }
 
-  throw new Error(`Could not navigate prototype to ${label}.`);
+  throw new Error(`Could not open prototype report link ${label}.`);
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function readPrototypeFixture(
