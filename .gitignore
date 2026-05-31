@@ -80,6 +80,7 @@ coverage-final.json
 playwright-report/
 blob-report/
 test-results/
+src/frontend/tests/visual-parity-artifacts/
 
 # Local database and app data
 *.db

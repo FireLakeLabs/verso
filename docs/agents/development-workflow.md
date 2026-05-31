@@ -14,6 +14,18 @@ Reviews should check the issue acceptance criteria, relevant ADRs, `CONTEXT.md`,
 
 If a review finds that an assigned guide or sensor is missing, the issue should stay open or be returned for follow-up.
 
+## Signed-off UI Surfaces
+
+Use the approved prototype bundle under `clickable-prototype/verso-prototype-smart-shelves-review/` as the design source of truth for signed-off frontend surfaces unless an ADR or issue explicitly records a divergence.
+
+Issue #24 establishes the baseline visual parity sensor. Issue #8 and frontend report/visualization issues such as #10 through #15 own extending the stable parity states and baselines for any signed-off surface they change, rather than treating visual updates as out-of-band follow-up.
+
+When an issue changes a signed-off UI surface:
+
+- run `just frontend-visual FRONTEND_PORT=<issue-derived-port>` while developing and `just verify` before review;
+- keep fixture data deterministic and stabilize or mask volatile regions such as timestamps or in-flight job progress instead of loosening thresholds broadly;
+- if the UI change is intentional, update the approved handoff or prototype reference first, then update the parity baselines and explain the divergence in the same PR.
+
 ## Review Handoff
 
 For implementation issues, do not report the work as done once local verification passes. The branch should be pushed and a pull request should be created before reporting completion.
@@ -22,6 +34,7 @@ The pull request should be ready for review rather than left as an unreviewable 
 
 - the PR is opened from the issue branch;
 - the PR description summarizes scope, commands run, and remaining risk;
+- the PR description notes any parity baseline updates or explicitly says no signed-off UI baselines changed;
 - the PR is not blocked on known follow-up work needed just to make it reviewable.
 
 If local work is complete but the PR has not been created yet, report the state as "implementation complete, PR not opened yet" rather than "done."
