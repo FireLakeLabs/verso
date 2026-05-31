@@ -212,6 +212,13 @@ const visualScenarios: readonly VisualScenario[] = [
     prototypeMaskSelectors: [".v-brand-sub"],
   },
   {
+    id: "cover-wall",
+    clip: { x: 0, y: 0, width: 1440, height: 980 },
+    maxDiffPixelRatio: 0.16,
+    appMaskSelectors: [".v-brand-sub"],
+    prototypeMaskSelectors: [".v-brand-sub"],
+  },
+  {
     id: "settings-interface",
     clip: { x: 0, y: 0, width: 1440, height: 900 },
     maxDiffPixelRatio: 0.08,
@@ -681,6 +688,26 @@ async function installFixtureRoutes(
     await fulfillJson(route, fixtureBundle.refreshStatus);
   });
 
+  await page.route("**/api/library/items/*/cover-images/*", async (route) => {
+    const requestUrl = new URL(route.request().url());
+    const pathParts = requestUrl.pathname.split("/");
+    const asin = decodeURIComponent(pathParts.at(-3) ?? "");
+    const item = fixtureBundle.items.find(
+      (candidate) => candidate.asin === asin,
+    );
+
+    if (!item) {
+      await route.fulfill({ status: 404 });
+      return;
+    }
+
+    await route.fulfill({
+      body: renderCachedCoverSvg(item),
+      contentType: "image/svg+xml",
+      status: 200,
+    });
+  });
+
   await page.route("**/api/library/items/*", async (route) => {
     const requestUrl = new URL(route.request().url());
     const asin = decodeURIComponent(
@@ -861,6 +888,10 @@ async function openPrototypeState(
       await openPrototypeReportLink(page, "Narrator affinity");
       await page.getByRole("heading", { name: "Narrator affinity" }).waitFor();
       return;
+    case "cover-wall":
+      await navigatePrototype(page, "Covers");
+      await page.locator("h1").filter({ hasText: "Cover wall" }).waitFor();
+      return;
     case "settings-interface":
       await openPrototypeSettingsInterface(page);
       return;
@@ -886,6 +917,7 @@ async function choosePrototypeOption(page: Page, label: string): Promise<void> {
 async function navigatePrototype(
   page: Page,
   label:
+    | "Covers"
     | "Genre treemap"
     | "Library"
     | "Overview"
@@ -1011,6 +1043,18 @@ function transformLibraryItem(item: PrototypeItem): LibraryItemDto {
   return {
     asin: item.asin,
     authors: [item.author],
+    coverImages: [
+      {
+        cachedAsset: {
+          cachedAtUtc: "2026-01-02T03:04:05.000Z",
+          contentType: "image/svg+xml",
+          sizeBytes: 1024,
+          url: `/api/library/items/${encodeURIComponent(item.asin)}/cover-images/500`,
+        },
+        sourceUrl: `https://images.audible.test/${item.asin}-500.jpg`,
+        variant: "500",
+      },
+    ],
     coverSeed: item.product_image_seed,
     hasSnapshots: item.percent_complete > 0 || !item._present,
     isNoLongerPresent: !item._present,
@@ -1020,6 +1064,83 @@ function transformLibraryItem(item: PrototypeItem): LibraryItemDto {
     runtimeMinutes: item.runtime_length_min,
     title: item.title,
   };
+}
+
+function renderCachedCoverSvg(item: LibraryItemDto): string {
+  const palette = getCoverPalette(item.coverSeed ?? hashString(item.asin));
+  const titleLines = splitCoverTitle(item.title);
+  const author = escapeXml((item.authors[0] ?? "Unknown").toUpperCase());
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><rect width="240" height="240" fill="${palette.background}"/><path d="M0 240 240 84v156z" fill="${palette.accent}" opacity=".18"/><text x="22" y="40" fill="${palette.foreground}" font-family="Arial, sans-serif" font-size="13" letter-spacing="2" opacity=".78">${author}</text>${titleLines.map((line, index) => `<text x="22" y="${126 + index * 30}" fill="${palette.foreground}" font-family="Arial, sans-serif" font-size="24" font-weight="700">${escapeXml(line)}</text>`).join("")}</svg>`;
+}
+
+function splitCoverTitle(title: string): string[] {
+  const words = title.split(/\s+/).filter((word) => word.length > 0);
+  const lines: string[] = [];
+
+  for (const word of words) {
+    const currentLine = lines.at(-1);
+    if (!currentLine || currentLine.length + word.length > 15) {
+      lines.push(word);
+      continue;
+    }
+
+    lines[lines.length - 1] = `${currentLine} ${word}`;
+  }
+
+  return lines.slice(0, 3);
+}
+
+function getCoverPalette(seed: number): {
+  accent: string;
+  background: string;
+  foreground: string;
+} {
+  const palettes = [
+    { accent: "#c2410c", background: "#0b0e14", foreground: "#fafbfc" },
+    { accent: "#0b0e14", background: "#c2410c", foreground: "#fef6ef" },
+    { accent: "#f0825c", background: "#1e2330", foreground: "#fafbfc" },
+    { accent: "#3a6b8c", background: "#3a6b8c", foreground: "#fafbfc" },
+    { accent: "#f0825c", background: "#5c7a55", foreground: "#fef6ef" },
+    { accent: "#f0825c", background: "#8c4156", foreground: "#fafbfc" },
+    { accent: "#1e2330", background: "#b58a3e", foreground: "#fafbfc" },
+    { accent: "#fef6ef", background: "#4f7f7c", foreground: "#fafbfc" },
+    { accent: "#f0825c", background: "#6b5478", foreground: "#fafbfc" },
+    { accent: "#e2541a", background: "#2d3340", foreground: "#fafbfc" },
+    { accent: "#c2410c", background: "#fafbfc", foreground: "#0b0e14" },
+    { accent: "#c2410c", background: "#fdead9", foreground: "#0b0e14" },
+    { accent: "#3a6b8c", background: "#eceff4", foreground: "#0b0e14" },
+  ] as const;
+
+  return palettes[Math.abs(seed) % palettes.length];
+}
+
+function hashString(value: string): number {
+  let hash = 0;
+
+  for (const character of value) {
+    hash = (hash << 5) - hash + character.charCodeAt(0);
+    hash |= 0;
+  }
+
+  return hash;
+}
+
+function escapeXml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "'":
+        return "&apos;";
+      default:
+        return "&quot;";
+    }
+  });
 }
 
 function transformItemDetail(

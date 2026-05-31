@@ -62,7 +62,21 @@ export type LibraryItemDto = {
   rawAudiblePayload: string;
   isNoLongerPresent: boolean;
   hasSnapshots: boolean;
+  coverImages?: LibraryItemCoverImageDto[] | null;
   coverSeed?: number;
+};
+
+export type CachedAssetDto = {
+  contentType: string;
+  sizeBytes: number;
+  cachedAtUtc: string;
+  url: string;
+};
+
+export type LibraryItemCoverImageDto = {
+  variant: string;
+  sourceUrl: string;
+  cachedAsset: CachedAssetDto | null;
 };
 
 export type LibraryItemsResponse = {

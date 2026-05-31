@@ -53,6 +53,7 @@ describe("visual parity shell model", () => {
         "report-genre",
         "report-keywords",
         "report-narrators",
+        "cover-wall",
         "settings-interface",
       ],
     );
@@ -146,6 +147,13 @@ describe("visual parity shell model", () => {
         {
           id: "report-narrators",
           view: "report-narrators",
+          nav: "topnav",
+          overview: "calm",
+          libraryView: "rows",
+        },
+        {
+          id: "cover-wall",
+          view: "wall",
           nav: "topnav",
           overview: "calm",
           libraryView: "rows",

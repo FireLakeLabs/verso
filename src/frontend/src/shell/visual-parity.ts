@@ -15,7 +15,8 @@ export type VisualParityView =
   | "report-keywords"
   | "report-narrators"
   | "report-runtime"
-  | "settings";
+  | "settings"
+  | "wall";
 
 export type ShellPreferences = {
   nav: NavigationChrome;
@@ -97,6 +98,10 @@ export const visualParityStates: readonly VisualParityState[] = [
   }),
   createVisualParityState("report-narrators", {
     view: "report-narrators",
+    preferences: defaultShellPreferences,
+  }),
+  createVisualParityState("cover-wall", {
+    view: "wall",
     preferences: defaultShellPreferences,
   }),
   createVisualParityState("settings-interface", {
