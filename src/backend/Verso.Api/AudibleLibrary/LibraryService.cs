@@ -150,6 +150,7 @@ public sealed class LibraryService(
     var items = await database.AudibleItems
         .AsNoTracking()
         .Include(item => item.Contributors)
+      .Include(item => item.CoverImages)
         .Include(item => item.Snapshots)
         .ToListAsync(cancellationToken);
 
@@ -169,7 +170,24 @@ public sealed class LibraryService(
                 item.PercentComplete,
                 item.RawAudiblePayload,
                 item.IsNoLongerPresent,
-                item.Snapshots.Count > 0))
+                item.Snapshots.Count > 0,
+                item.CoverImages
+                    .OrderBy(coverImage => coverImage.Variant, StringComparer.Ordinal)
+                    .Select(
+                        coverImage => new LibraryItemCoverImageDto(
+                            coverImage.Variant,
+                            coverImage.SourceUrl,
+                            coverImage.CachedRelativePath is null
+                            || coverImage.CachedContentType is null
+                            || coverImage.CachedSizeBytes is null
+                            || coverImage.CachedAtUtc is null
+                                ? null
+                                : new CachedAssetDto(
+                                    coverImage.CachedContentType,
+                                    coverImage.CachedSizeBytes.Value,
+                                    coverImage.CachedAtUtc.Value,
+                                    AudibleCoverAssetCacheService.GetCachedCoverUrl(item.Asin, coverImage.Variant))))
+                    .ToArray()))
         .ToArray();
 
     return new LibraryItemsResponse(filteredItems);

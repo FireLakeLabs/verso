@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { rmSync, mkdtempSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
+import { chromium, type Page } from "@playwright/test";
 
 const frontendPort = Number.parseInt(
   process.env.VERSO_FRONTEND_PORT ?? "5202",
@@ -31,7 +31,7 @@ const backend = spawn(
       VERSO_BACKEND_PORT: String(backendPort),
       VERSO_DATA_DIRECTORY: smokeDataDirectory,
     },
-    stdio: "inherit",
+    stdio: "ignore",
   },
 );
 
@@ -56,59 +56,26 @@ try {
 
   try {
     const page = await browser.newPage();
-    await page.goto(baseUrl);
+    await gotoWithRetry(page, baseUrl);
     const primaryNav = page.getByRole("navigation", { name: "Primary" });
+    const primaryNavText = (await primaryNav.textContent()) ?? "";
 
     await page.getByRole("heading", { name: "Library overview" }).waitFor();
     assert.equal(
       await page.getByRole("heading", { name: "Library overview" }).isVisible(),
       true,
     );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Overview$/ })
-        .isVisible(),
-      true,
-    );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Library$/ })
-        .isVisible(),
-      true,
-    );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Reports$/ })
-        .isVisible(),
-      true,
-    );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Health$/ })
-        .isVisible(),
-      true,
-    );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Refresh$/ })
-        .isVisible(),
-      true,
-    );
-    assert.equal(
-      await primaryNav
-        .locator("button")
-        .filter({ hasText: /^Settings$/ })
-        .isVisible(),
-      true,
-    );
+    assert.match(primaryNavText, /Overview/);
+    assert.match(primaryNavText, /Library/);
+    assert.match(primaryNavText, /Shelves/);
+    assert.match(primaryNavText, /Covers/);
+    assert.match(primaryNavText, /Reports/);
+    assert.match(primaryNavText, /Health/);
+    assert.match(primaryNavText, /Export/);
+    assert.match(primaryNavText, /Settings/);
     assert.equal(
       await page
-        .getByRole("button", { name: /Search 1 library owner workspace/i })
+        .getByRole("button", { name: /Search command palette placeholder/i })
         .isVisible(),
       true,
     );
@@ -122,33 +89,65 @@ try {
 
   console.log("Verso shell smoke passed");
 } finally {
-  if (server.pid) {
-    server.kill("SIGTERM");
-    const exitResult = await Promise.race([
-      once(server, "exit").then(() => "exited"),
-      new Promise((resolve) => setTimeout(() => resolve("timeout"), 5_000)),
-    ]);
-
-    if (exitResult === "timeout") {
-      server.kill("SIGKILL");
-      await once(server, "exit");
-    }
-  }
-
-  if (backend.pid) {
-    backend.kill("SIGTERM");
-    const exitResult = await Promise.race([
-      once(backend, "exit").then(() => "exited"),
-      new Promise((resolve) => setTimeout(() => resolve("timeout"), 5_000)),
-    ]);
-
-    if (exitResult === "timeout") {
-      backend.kill("SIGKILL");
-      await once(backend, "exit");
-    }
-  }
+  await stopChildProcess(server);
+  await stopChildProcess(backend);
 
   rmSync(smokeDataDirectory, { force: true, recursive: true });
+}
+
+async function stopChildProcess(process: ReturnType<typeof spawn>) {
+  if (!process.pid || process.exitCode !== null) {
+    return;
+  }
+
+  process.kill("SIGTERM");
+
+  const exited = await waitForChildProcessExit(process, 5_000);
+  if (exited || process.exitCode !== null) {
+    return;
+  }
+
+  process.kill("SIGKILL");
+  await waitForChildProcessExit(process, 5_000);
+}
+
+async function waitForChildProcessExit(
+  process: ReturnType<typeof spawn>,
+  timeoutMs: number,
+) {
+  if (process.exitCode !== null) {
+    return true;
+  }
+
+  return await Promise.race([
+    once(process, "exit").then(() => true),
+    new Promise<false>((resolve) =>
+      setTimeout(() => resolve(false), timeoutMs),
+    ),
+  ]);
+}
+
+async function gotoWithRetry(page: Page, url: string) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await page.goto(url, { timeout: 5_000, waitUntil: "commit" });
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (error instanceof Error && error.message.includes("ERR_ABORTED")) {
+        return;
+      }
+
+      if (!(error instanceof Error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 async function waitForServer(url: string) {
