@@ -227,6 +227,7 @@ export type LibraryFilters = {
 type ErrorPayload = {
   code?: string;
   message?: string;
+  title?: string;
   technicalDetails?: string | null;
   phase?: string;
 };
@@ -358,6 +359,10 @@ async function readErrorMessage(response: Response): Promise<string> {
     const error = JSON.parse(body) as ErrorPayload;
     if (typeof error.message === "string" && error.message.length > 0) {
       return error.message;
+    }
+
+    if (typeof error.title === "string" && error.title.length > 0) {
+      return error.title;
     }
   } catch {
     return body;
