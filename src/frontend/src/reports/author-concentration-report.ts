@@ -55,18 +55,16 @@ export function createAuthorConcentrationReport(
   }
 
   const authorEntries = [...aggregates.values()];
+  const rankedByHours = toRankedEntries(authorEntries, "hours");
+  const rankedByCount = toRankedEntries(authorEntries, "count");
 
   return {
     totalDistinctAuthors: authorEntries.length,
     totalItems: source.items.length,
-    rankedByHours: toRankedEntries(authorEntries, "hours"),
-    rankedByCount: toRankedEntries(authorEntries, "count"),
-    thresholdsByHours: summarizeThresholds(
-      toRankedEntries(authorEntries, "hours"),
-    ),
-    thresholdsByCount: summarizeThresholds(
-      toRankedEntries(authorEntries, "count"),
-    ),
+    rankedByHours,
+    rankedByCount,
+    thresholdsByHours: summarizeThresholds(rankedByHours),
+    thresholdsByCount: summarizeThresholds(rankedByCount),
   };
 }
 

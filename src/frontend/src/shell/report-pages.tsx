@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -991,7 +991,7 @@ export function NarratorAffinityPage({
                 </div>
               ))}
               {report.authorOverlapMatrix.rows.map((row) => (
-                <>
+                <Fragment key={row.narrator}>
                   <div
                     key={`${row.narrator}-label`}
                     style={{
@@ -1025,7 +1025,7 @@ export function NarratorAffinityPage({
                       {count || "—"}
                     </div>
                   ))}
-                </>
+                </Fragment>
               ))}
             </div>
           </div>
