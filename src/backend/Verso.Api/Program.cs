@@ -25,6 +25,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddHttpClient<IAudibleAssetDownloader, AudibleAssetDownloader>();
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
+builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<LibraryService>();
 builder.Services.AddSingleton<AudibleCoverAssetCacheService>();
 builder.Services.AddScoped<AudibleLibraryImportService>();
@@ -82,6 +83,26 @@ app.MapDelete("/api/audible-authentication/session", async (AudibleAuthenticatio
 {
   await service.ClearCurrentAsync(cancellationToken);
   return Results.NoContent();
+});
+app.MapGet("/api/settings", async Task<Ok<SettingsResponse>> (SettingsService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetAsync(cancellationToken);
+  return TypedResults.Ok(result);
+});
+app.MapPut("/api/settings", async Task<Results<Ok<SettingsResponse>, ProblemHttpResult>> (
+    UpdateSettingsRequest request,
+    SettingsService service,
+    CancellationToken cancellationToken) =>
+{
+  if (!SettingsService.IsValid(request))
+  {
+    return TypedResults.Problem(
+        statusCode: StatusCodes.Status400BadRequest,
+        title: "Invalid settings update.");
+  }
+
+  var result = await service.UpdateAsync(request, cancellationToken);
+  return TypedResults.Ok(result);
 });
 app.MapPost("/api/audible-library/imports", async (AudibleLibraryImportService service, CancellationToken cancellationToken) =>
 {

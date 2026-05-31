@@ -382,6 +382,225 @@ public sealed class AudibleLibraryImportTests
   }
 
   [Fact]
+  public async Task SignOutClearsCurrentAudibleSessionAndSettingsState()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    application.SetLoginClient(new FakeAudibleLoginClient());
+
+    using var client = application.CreateClient();
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    var signOutResponse = await client.DeleteAsync("/api/audible-authentication/session");
+
+    Assert.Equal(HttpStatusCode.NoContent, signOutResponse.StatusCode);
+
+    var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
+        "/api/audible-authentication/session");
+    var settings = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+    Assert.NotNull(currentSession);
+    Assert.Equal("not-authenticated", currentSession.Status);
+    Assert.Null(currentSession.Locale);
+
+    Assert.NotNull(settings);
+    Assert.Equal("not-authenticated", settings.AudibleAuthentication.Status);
+    Assert.Null(settings.AudibleAuthentication.Locale);
+    Assert.Null(settings.AudibleAuthentication.LastAuthenticatedAtUtc);
+  }
+
+  [Fact]
+  public async Task RefreshRequiresAuthenticationUntilSessionExistsAndThenPersistsLibraryData()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    application.SetLoginClient(new FakeAudibleLoginClient());
+    application.UseIdentityFileGatedLibrarySource(
+        [
+            new ImportedAudibleItem(
+                "B00AUTH001",
+                "Authenticated Refresh Title",
+                ["Author Authenticated"],
+                ["Narrator Authenticated"],
+                720,
+                50,
+                "{\"asin\":\"B00AUTH001\",\"title\":\"Authenticated Refresh Title\"}")
+        ]);
+
+    using var client = application.CreateClient();
+
+    var unauthenticatedRefresh = await client.PostAsync("/api/library/refresh-jobs", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, unauthenticatedRefresh.StatusCode);
+
+    var failedRefresh = await unauthenticatedRefresh.Content.ReadFromJsonAsync<StartLibraryRefreshResponse>();
+
+    Assert.NotNull(failedRefresh);
+    Assert.Equal("failed", failedRefresh.Job.Status);
+    Assert.Equal(
+        "audible-library-authentication-required",
+        Assert.Single(failedRefresh.Job.Errors).Code);
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    var authenticatedRefresh = await client.PostAsync("/api/library/refresh-jobs", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, authenticatedRefresh.StatusCode);
+
+    var successfulRefresh = await authenticatedRefresh.Content.ReadFromJsonAsync<StartLibraryRefreshResponse>();
+
+    Assert.NotNull(successfulRefresh);
+    Assert.Equal("succeeded", successfulRefresh.Job.Status);
+    Assert.Equal(1, successfulRefresh.Job.ImportedItemCount);
+
+    var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
+
+    Assert.NotNull(library);
+    var item = Assert.Single(library.Items);
+    Assert.Equal("B00AUTH001", item.Asin);
+    Assert.Equal("Authenticated Refresh Title", item.Title);
+  }
+
+  [Fact]
+  public async Task SettingsEndpointPersistsInterfacePreferencesAcrossRequests()
+  {
+    await using var application = new VersoApplicationFactory([]);
+
+    using var client = application.CreateClient();
+
+    var initialSettings = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+    Assert.NotNull(initialSettings);
+    Assert.Equal("topnav", initialSettings.InterfacePreferences.NavChrome);
+    Assert.Equal("calm", initialSettings.InterfacePreferences.DefaultOverviewVariant);
+    Assert.Equal("rows", initialSettings.InterfacePreferences.DefaultLibraryView);
+
+    var updateResponse = await client.PutAsJsonAsync(
+        "/api/settings",
+        new UpdateSettingsRequest(
+            new InterfacePreferencesSettingsDto(
+                "sidebar",
+                "dense",
+                "cards")));
+
+    Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+    var updatedSettings = await updateResponse.Content.ReadFromJsonAsync<SettingsResponse>();
+
+    Assert.NotNull(updatedSettings);
+    Assert.Equal("sidebar", updatedSettings.InterfacePreferences.NavChrome);
+    Assert.Equal("dense", updatedSettings.InterfacePreferences.DefaultOverviewVariant);
+    Assert.Equal("cards", updatedSettings.InterfacePreferences.DefaultLibraryView);
+
+    var reloadedSettings = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+    Assert.NotNull(reloadedSettings);
+    Assert.Equal("sidebar", reloadedSettings.InterfacePreferences.NavChrome);
+    Assert.Equal("dense", reloadedSettings.InterfacePreferences.DefaultOverviewVariant);
+    Assert.Equal("cards", reloadedSettings.InterfacePreferences.DefaultLibraryView);
+  }
+
+  [Fact]
+  public async Task SettingsEndpointIncludesAuthenticationAndLocalDataDetails()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    application.SetLoginClient(new FakeAudibleLoginClient());
+
+    using var client = application.CreateClient();
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    var settings = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+    Assert.NotNull(settings);
+    Assert.Equal("authenticated", settings.AudibleAuthentication.Status);
+    Assert.Equal("us", settings.AudibleAuthentication.Locale);
+    Assert.True(settings.AudibleAuthentication.LastAuthenticatedAtUtc.HasValue);
+    Assert.Contains("verso-tests", settings.LocalData.DatabaseLocation, StringComparison.OrdinalIgnoreCase);
+    Assert.Contains("cached-assets", settings.LocalData.CoverCacheLocation.Replace('\\', '/'));
+    Assert.True(settings.LocalData.SchemaVersion.Length > 0);
+    Assert.Equal(0, settings.LocalData.RawPayloadCount);
+    Assert.Equal("manual", settings.Refresh.Trigger);
+    Assert.Contains("presence", settings.Refresh.SelectiveSnapshotFields);
+    Assert.Equal("per-credit-value", settings.CostBasis.DefaultBasis);
+    Assert.Equal(14.95m, settings.CostBasis.PerCreditValue);
+    Assert.Equal("json-archive", settings.ArchiveExport.Format);
+    Assert.Equal("sibling-folder", settings.ArchiveExport.CoverImages);
+  }
+
+  [Fact]
+  public async Task SettingsEndpointPersistsRefreshCostBasisAndArchiveExportMutations()
+  {
+    await using var application = new VersoApplicationFactory([]);
+
+    using var client = application.CreateClient();
+
+    var updateResponse = await client.PutAsJsonAsync(
+        "/api/settings",
+        new UpdateSettingsRequest(
+          Refresh: new RefreshSettingsMutationDto("daily-at-idle", false),
+            CostBasis: new CostBasisSettingsMutationDto("list-price", 21.50m, "USD"),
+          ArchiveExport: new ArchiveExportSettingsMutationDto("markdown-projection", false, "omit")));
+
+    Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+    var updatedSettings = await updateResponse.Content.ReadFromJsonAsync<SettingsResponse>();
+
+    Assert.NotNull(updatedSettings);
+    Assert.Equal("daily-at-idle", updatedSettings.Refresh.Trigger);
+    Assert.False(updatedSettings.Refresh.RetainNoLongerPresentItems);
+    Assert.Equal("list-price", updatedSettings.CostBasis.DefaultBasis);
+    Assert.Equal(21.50m, updatedSettings.CostBasis.PerCreditValue);
+    Assert.Equal("USD", updatedSettings.CostBasis.CurrencyCode);
+    Assert.Equal("markdown-projection", updatedSettings.ArchiveExport.Format);
+    Assert.False(updatedSettings.ArchiveExport.IncludeRawPayloads);
+    Assert.Equal("omit", updatedSettings.ArchiveExport.CoverImages);
+
+    var reloadedSettings = await client.GetFromJsonAsync<SettingsResponse>("/api/settings");
+
+    Assert.NotNull(reloadedSettings);
+    Assert.Equal("daily-at-idle", reloadedSettings.Refresh.Trigger);
+    Assert.False(reloadedSettings.Refresh.RetainNoLongerPresentItems);
+    Assert.Equal("list-price", reloadedSettings.CostBasis.DefaultBasis);
+    Assert.Equal(21.50m, reloadedSettings.CostBasis.PerCreditValue);
+    Assert.Equal("markdown-projection", reloadedSettings.ArchiveExport.Format);
+    Assert.False(reloadedSettings.ArchiveExport.IncludeRawPayloads);
+    Assert.Equal("omit", reloadedSettings.ArchiveExport.CoverImages);
+  }
+
+  [Fact]
   public async Task StartAuthenticationReturnsServerErrorWhenLoginClientFailsBeforePrompt()
   {
     await using var application = new VersoApplicationFactory([]);
@@ -402,13 +621,58 @@ public sealed class AudibleLibraryImportTests
     Assert.Equal("Audible authentication could not be started. Try again.", error.Message);
   }
 
-  private sealed class VersoApplicationFactory(IReadOnlyList<ImportedAudibleItem> items) : WebApplicationFactory<Program>
+  [Fact]
+  public async Task FailedReauthenticationPreservesExistingAudibleSession()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    var loginClient = new MutableAudibleLoginClient();
+    application.SetLoginClient(loginClient);
+
+    using var client = application.CreateClient();
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    loginClient.ShouldFailBeforePrompt = true;
+
+    var failedStartResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("uk"));
+
+    Assert.Equal(HttpStatusCode.InternalServerError, failedStartResponse.StatusCode);
+
+    var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
+        "/api/audible-authentication/session");
+
+    Assert.NotNull(currentSession);
+    Assert.Equal("authenticated", currentSession.Status);
+    Assert.Equal("us", currentSession.Locale);
+  }
+
+  private sealed class VersoApplicationFactory : WebApplicationFactory<Program>
   {
     private readonly string databasePath = Path.Combine(Path.GetTempPath(), $"verso-tests-{Guid.NewGuid():N}.db");
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), $"verso-tests-data-{Guid.NewGuid():N}");
-    private readonly MutableAudibleLibrarySource source = new(AudibleLibraryFetchResult.Succeeded(items));
+    private readonly MutableAudibleLibrarySource source;
+    private IAudibleLibrarySource librarySource;
     private IAudibleLoginClient? loginClient;
     private IAudibleAssetDownloader? assetDownloader;
+
+    public VersoApplicationFactory(IReadOnlyList<ImportedAudibleItem> items)
+    {
+      source = new MutableAudibleLibrarySource(AudibleLibraryFetchResult.Succeeded(items));
+      librarySource = source;
+    }
 
     public void SetImportedItems(IReadOnlyList<ImportedAudibleItem> items)
     {
@@ -418,6 +682,13 @@ public sealed class AudibleLibraryImportTests
     public void SetRefreshResult(AudibleLibraryFetchResult result)
     {
       source.SetResult(result);
+    }
+
+    public void UseIdentityFileGatedLibrarySource(IReadOnlyList<ImportedAudibleItem> items)
+    {
+      librarySource = new IdentityFileGatedLibrarySource(
+          Path.Combine(dataDirectory, "audible", "identity.json"),
+          items);
     }
 
     public void SetLoginClient(IAudibleLoginClient loginClient)
@@ -438,7 +709,8 @@ public sealed class AudibleLibraryImportTests
 
       builder.ConfigureServices(services =>
       {
-        services.AddSingleton<IAudibleLibrarySource>(source);
+        services.RemoveAll<IAudibleLibrarySource>();
+        services.AddSingleton(librarySource);
 
         if (loginClient is not null)
         {
@@ -481,6 +753,24 @@ public sealed class AudibleLibraryImportTests
     }
   }
 
+  private sealed class IdentityFileGatedLibrarySource(
+      string identityFilePath,
+      IReadOnlyList<ImportedAudibleItem> items) : IAudibleLibrarySource
+  {
+    public Task<AudibleLibraryFetchResult> RefreshLibraryAsync(CancellationToken cancellationToken)
+    {
+      return Task.FromResult(
+          File.Exists(identityFilePath)
+              ? AudibleLibraryFetchResult.Succeeded(items)
+              : AudibleLibraryFetchResult.Failed(
+                  new LibraryOperationError(
+                      "audible-library-authentication-required",
+                      "Authenticate with Audible before refreshing the library.",
+                      "The local Audible identity file is missing or no longer valid.",
+                      "authenticate")));
+    }
+  }
+
   private sealed class FakeAudibleLoginClient : IAudibleLoginClient
   {
     public async Task EnsureAuthenticatedAsync(
@@ -489,6 +779,31 @@ public sealed class AudibleLibraryImportTests
         Func<ExternalAudibleLoginPrompt, Task<string>> externalLoginAsync,
         CancellationToken cancellationToken)
     {
+      var responseUrl = await externalLoginAsync(
+          new ExternalAudibleLoginPrompt(
+              "https://www.audible.test/signin",
+              [new AudibleSignInCookieDto("x-main", "cookie-value", ".audible.test", "/")]));
+
+      Directory.CreateDirectory(Path.GetDirectoryName(identityFilePath)!);
+      await File.WriteAllTextAsync(identityFilePath, responseUrl, cancellationToken);
+    }
+  }
+
+  private sealed class MutableAudibleLoginClient : IAudibleLoginClient
+  {
+    public bool ShouldFailBeforePrompt { get; set; }
+
+    public async Task EnsureAuthenticatedAsync(
+        string locale,
+        string identityFilePath,
+        Func<ExternalAudibleLoginPrompt, Task<string>> externalLoginAsync,
+        CancellationToken cancellationToken)
+    {
+      if (ShouldFailBeforePrompt)
+      {
+        throw new InvalidOperationException("Synthetic login failure before prompt.");
+      }
+
       var responseUrl = await externalLoginAsync(
           new ExternalAudibleLoginPrompt(
               "https://www.audible.test/signin",

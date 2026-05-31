@@ -20,14 +20,17 @@ public sealed class AudibleAuthenticationService(
   public async Task<StartAudibleAuthenticationResponse> StartAsync(StartAudibleAuthenticationRequest request, CancellationToken cancellationToken)
   {
     var locale = string.IsNullOrWhiteSpace(request.Locale) ? "us" : request.Locale.Trim().ToLowerInvariant();
-    var identityFilePath = Path.Combine(storageOptions.DataDirectory, "audible", "identity.json");
+    var identityDirectory = Path.Combine(storageOptions.DataDirectory, "audible");
+    var activeIdentityFilePath = Path.Combine(identityDirectory, "identity.json");
+    var pendingIdentityFilePath = Path.Combine(
+        identityDirectory,
+        $"identity.pending-{Guid.NewGuid():N}.json");
 
-    if (File.Exists(identityFilePath))
-    {
-      File.Delete(identityFilePath);
-    }
-
-    var pendingAuthentication = new PendingAudibleAuthentication(locale, identityFilePath, clock);
+    var pendingAuthentication = new PendingAudibleAuthentication(
+        locale,
+        pendingIdentityFilePath,
+        activeIdentityFilePath,
+        clock);
     if (!pendingSessions.TryAdd(pendingAuthentication.SessionId, pendingAuthentication))
     {
       throw new InvalidOperationException("Could not create a pending Audible authentication session.");
@@ -106,13 +109,15 @@ public sealed class AudibleAuthenticationService(
     {
       await loginClient.EnsureAuthenticatedAsync(
           pendingAuthentication.Locale,
-          pendingAuthentication.IdentityFilePath,
+          pendingAuthentication.PendingIdentityFilePath,
           prompt =>
           {
             pendingAuthentication.PublishPrompt(prompt);
             return pendingAuthentication.WaitForResponseUrlAsync();
           },
           pendingAuthentication.CancellationToken);
+
+      ReplaceCurrentIdentityFile(pendingAuthentication);
 
       await using var database = await databaseFactory.CreateDbContextAsync(pendingAuthentication.CancellationToken);
 
@@ -121,7 +126,7 @@ public sealed class AudibleAuthenticationService(
           ?? new AudibleAuthenticationStateEntity { Id = CurrentSessionId };
 
       currentSession.Locale = pendingAuthentication.Locale;
-      currentSession.IdentityFilePath = pendingAuthentication.IdentityFilePath;
+      currentSession.IdentityFilePath = pendingAuthentication.ActiveIdentityFilePath;
       currentSession.AuthenticatedAtUtc = clock.GetUtcNow();
 
       if (database.Entry(currentSession).State == EntityState.Detached)
@@ -143,11 +148,30 @@ public sealed class AudibleAuthenticationService(
     finally
     {
       pendingSessions.TryRemove(pendingAuthentication.SessionId, out _);
+      pendingAuthentication.DeletePendingIdentityFileIfPresent();
       pendingAuthentication.Dispose();
     }
   }
 
-  private sealed class PendingAudibleAuthentication(string locale, string identityFilePath, TimeProvider clock)
+  private static void ReplaceCurrentIdentityFile(PendingAudibleAuthentication pendingAuthentication)
+  {
+    Directory.CreateDirectory(Path.GetDirectoryName(pendingAuthentication.ActiveIdentityFilePath)!);
+
+    if (File.Exists(pendingAuthentication.ActiveIdentityFilePath))
+    {
+      File.Delete(pendingAuthentication.ActiveIdentityFilePath);
+    }
+
+    File.Move(
+        pendingAuthentication.PendingIdentityFilePath,
+        pendingAuthentication.ActiveIdentityFilePath);
+  }
+
+  private sealed class PendingAudibleAuthentication(
+      string locale,
+      string pendingIdentityFilePath,
+      string activeIdentityFilePath,
+      TimeProvider clock)
       : IDisposable
   {
     private readonly TaskCompletionSource<ExternalAudibleLoginPrompt> promptSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -157,7 +181,9 @@ public sealed class AudibleAuthenticationService(
 
     public string Locale { get; } = locale;
 
-    public string IdentityFilePath { get; } = identityFilePath;
+    public string PendingIdentityFilePath { get; } = pendingIdentityFilePath;
+
+    public string ActiveIdentityFilePath { get; } = activeIdentityFilePath;
 
     public string Status { get; private set; } = "starting";
 
@@ -218,6 +244,14 @@ public sealed class AudibleAuthenticationService(
     {
       Status = "failed";
       LastError = error;
+    }
+
+    public void DeletePendingIdentityFileIfPresent()
+    {
+      if (File.Exists(PendingIdentityFilePath))
+      {
+        File.Delete(PendingIdentityFilePath);
+      }
     }
 
     public AudibleAuthenticationStatusResponse ToStatusResponse()

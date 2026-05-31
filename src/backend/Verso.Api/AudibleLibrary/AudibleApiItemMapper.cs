@@ -14,7 +14,7 @@ public static class AudibleApiItemMapper
     var item = rawItem.ToObject<Item>()
         ?? throw new InvalidOperationException("Audible raw item could not be mapped to an AudibleApi item.");
 
-  return Map(item, rawItem.ToString(Formatting.None), rawItem, MapCoverImages(rawItem));
+    return Map(item, rawItem.ToString(Formatting.None), rawItem, MapCoverImages(rawItem));
   }
 
   public static ImportedAudibleItem Map(Item item)
@@ -72,20 +72,20 @@ public static class AudibleApiItemMapper
               : [],
             coverImages);
 
-          }
+  }
 
-          private static IReadOnlyList<ImportedAudibleCoverImage> MapCoverImages(JObject rawItem)
-          {
-          return rawItem["product_images"] is not JObject productImages
-            ? []
-            : productImages.Properties()
-              .Select(property => new ImportedAudibleCoverImage(
-                property.Name.Trim(),
-                property.Value.Type == JTokenType.String
-                  ? property.Value.Value<string>()?.Trim() ?? string.Empty
-                  : string.Empty))
-              .Where(image => !string.IsNullOrWhiteSpace(image.Variant) && !string.IsNullOrWhiteSpace(image.SourceUrl))
-              .Distinct()
-              .ToArray();
+  private static IReadOnlyList<ImportedAudibleCoverImage> MapCoverImages(JObject rawItem)
+  {
+    return rawItem["product_images"] is not JObject productImages
+      ? []
+      : productImages.Properties()
+        .Select(property => new ImportedAudibleCoverImage(
+          property.Name.Trim(),
+          property.Value.Type == JTokenType.String
+            ? property.Value.Value<string>()?.Trim() ?? string.Empty
+            : string.Empty))
+        .Where(image => !string.IsNullOrWhiteSpace(image.Variant) && !string.IsNullOrWhiteSpace(image.SourceUrl))
+        .Distinct()
+        .ToArray();
   }
 }

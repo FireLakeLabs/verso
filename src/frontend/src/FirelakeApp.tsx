@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  type StartAudibleAuthenticationResponse,
+  type SettingsResponse,
+  type UpdateSettingsRequest,
   createLibraryApi,
+  type InterfacePreferencesSettingsDto,
   type LibraryFilters,
   type LibraryItemDetailDto,
   type LibraryItemDto,
@@ -9,6 +13,10 @@ import {
 } from "./library-api";
 import { createLibraryScreenReport } from "./reports/library-screen-report";
 import { FirelakeShell } from "./shell/firelake-shell";
+import {
+  defaultShellPreferences,
+  type ShellPreferences,
+} from "./shell/visual-parity";
 
 const defaultFilters: LibraryFilters = {
   search: "",
@@ -34,6 +42,10 @@ export function FirelakeApp() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<ShellPreferences>(
+    defaultShellPreferences,
+  );
+  const [settings, setSettings] = useState<SettingsResponse | null>(null);
 
   const loadLibrary = useCallback(
     async (showLoading: boolean) => {
@@ -76,6 +88,45 @@ export function FirelakeApp() {
   useEffect(() => {
     void loadLibrary(true);
   }, [loadLibrary]);
+
+  const loadSettings = useCallback(async () => {
+    const nextSettings = await api.getSettings();
+
+    setSettings(nextSettings);
+    setPreferences(
+      mapInterfacePreferencesToShell(
+        nextSettings.interfacePreferences,
+        defaultShellPreferences,
+      ),
+    );
+    setLoadError(null);
+
+    return nextSettings;
+  }, [api]);
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    void loadSettings()
+      .then((loadedSettings) => {
+        if (!isDisposed) {
+          setSettings(loadedSettings);
+        }
+      })
+      .catch((error) => {
+        if (!isDisposed) {
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Settings could not be loaded.",
+          );
+        }
+      });
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [loadSettings]);
 
   const screenReport = useMemo(
     () =>
@@ -123,6 +174,11 @@ export function FirelakeApp() {
   }, [api, screenReport.activeAsin]);
 
   async function handleRefresh() {
+    if (settings?.audibleAuthentication.status !== "authenticated") {
+      setLoadError("Authenticate with Audible before refreshing the library.");
+      return;
+    }
+
     setIsRefreshing(true);
 
     try {
@@ -162,6 +218,124 @@ export function FirelakeApp() {
     );
   }
 
+  function updatePreference<Key extends keyof ShellPreferences>(
+    key: Key,
+    value: ShellPreferences[Key],
+  ) {
+    const previousPreferences = preferences;
+    const nextPreferences = {
+      ...preferences,
+      [key]: value,
+    };
+
+    setPreferences(nextPreferences);
+    setSettings((currentSettings) =>
+      currentSettings === null
+        ? currentSettings
+        : {
+            ...currentSettings,
+            interfacePreferences:
+              mapShellPreferencesToInterface(nextPreferences),
+          },
+    );
+
+    void persistSettingsUpdate({
+      interfacePreferences: mapShellPreferencesToInterface(nextPreferences),
+    })
+      .then((settings) => {
+        setPreferences(
+          mapInterfacePreferencesToShell(
+            settings.interfacePreferences,
+            nextPreferences,
+          ),
+        );
+      })
+      .catch((error) => {
+        setPreferences(previousPreferences);
+        setSettings((currentSettings) =>
+          currentSettings === null
+            ? currentSettings
+            : {
+                ...currentSettings,
+                interfacePreferences:
+                  mapShellPreferencesToInterface(previousPreferences),
+              },
+        );
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Settings could not be saved.",
+        );
+      });
+  }
+
+  async function persistSettingsUpdate(request: UpdateSettingsRequest) {
+    const nextSettings = await api.updateSettings(request);
+    setSettings(nextSettings);
+    setLoadError(null);
+    return nextSettings;
+  }
+
+  async function handleStartAuthentication(
+    locale: string,
+  ): Promise<StartAudibleAuthenticationResponse> {
+    try {
+      const prompt = await api.startAuthentication({ locale });
+      setLoadError(null);
+      return prompt;
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be started.",
+      );
+
+      throw error;
+    }
+  }
+
+  async function handleCompleteAuthentication(
+    sessionId: string,
+    responseUrl: string,
+  ) {
+    try {
+      const result = await api.completeAuthentication(sessionId, {
+        responseUrl,
+      });
+
+      if (result.status === "failed") {
+        throw new Error(
+          result.lastError ?? "Audible authentication could not be completed.",
+        );
+      }
+
+      await loadSettings();
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be completed.",
+      );
+
+      throw error;
+    }
+  }
+
+  async function handleSignOutAuthentication() {
+    try {
+      await api.signOutAuthentication();
+      await loadSettings();
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : "Audible sign-out failed.",
+      );
+
+      throw error;
+    }
+  }
+
   return (
     <FirelakeShell
       activeAsin={activeAsin}
@@ -173,14 +347,53 @@ export function FirelakeApp() {
       items={items}
       loadError={loadError}
       onChangeFilter={updateFilter}
+      onChangePreference={updatePreference}
+      onCompleteAuthentication={handleCompleteAuthentication}
       onSetActiveAsin={setActiveAsin}
+      onSignOutAuthentication={handleSignOutAuthentication}
+      onStartAuthentication={handleStartAuthentication}
       onStartRefresh={() => {
         void handleRefresh();
       }}
+      onUpdateSettings={persistSettingsUpdate}
       onToggleSelection={toggleSelection}
       overview={overview}
+      preferences={preferences}
       refreshStatus={refreshStatus}
       selectedAsins={selectedAsins}
+      settings={settings}
     />
   );
+}
+
+function mapInterfacePreferencesToShell(
+  preferences: InterfacePreferencesSettingsDto,
+  fallback: ShellPreferences,
+): ShellPreferences {
+  return {
+    nav:
+      preferences.navChrome === "sidebar" || preferences.navChrome === "topnav"
+        ? preferences.navChrome
+        : fallback.nav,
+    overview:
+      preferences.defaultOverviewVariant === "dense" ||
+      preferences.defaultOverviewVariant === "calm"
+        ? preferences.defaultOverviewVariant
+        : fallback.overview,
+    libraryView:
+      preferences.defaultLibraryView === "cards" ||
+      preferences.defaultLibraryView === "rows"
+        ? preferences.defaultLibraryView
+        : fallback.libraryView,
+  };
+}
+
+function mapShellPreferencesToInterface(
+  preferences: ShellPreferences,
+): InterfacePreferencesSettingsDto {
+  return {
+    navChrome: preferences.nav,
+    defaultOverviewVariant: preferences.overview,
+    defaultLibraryView: preferences.libraryView,
+  };
 }
