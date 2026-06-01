@@ -272,6 +272,8 @@ public sealed class AudibleLibraryImportTests
     Assert.Contains("B0EDGE0001", error.TechnicalDetails, StringComparison.Ordinal);
     Assert.Contains("500", error.TechnicalDetails, StringComparison.Ordinal);
     Assert.Contains("https://images.audible.test/B0EDGE0001-500.jpg", error.TechnicalDetails, StringComparison.Ordinal);
+    Assert.Contains("IOException", error.TechnicalDetails, StringComparison.Ordinal);
+    Assert.DoesNotContain("Synthetic cover download failure", error.TechnicalDetails, StringComparison.Ordinal);
 
     var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
 
@@ -282,6 +284,53 @@ public sealed class AudibleLibraryImportTests
     var coverImage = Assert.Single(item.CoverImages);
     Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
     Assert.Null(coverImage.CachedAsset);
+    Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
+  }
+
+  [Fact]
+  public async Task RefreshJobPreservesExistingCoverImagesWhenCoverFactsAreNotProvided()
+  {
+    var assetDownloader = new FakeAudibleAssetDownloader(
+        new Dictionary<string, DownloadedAudibleAsset>(StringComparer.Ordinal)
+        {
+          ["https://images.audible.test/B0EDGE0001-500.jpg"] = new("image/jpeg", [1, 2, 3], ".jpg")
+        });
+
+    await using var application = new VersoApplicationFactory(
+        [
+            AudibleApiFixtureLibrary.LoadImportedItem("single-item/sparse-rich-edge-cases")
+        ]);
+    application.SetAssetDownloader(assetDownloader);
+
+    using var client = application.CreateClient();
+
+    var firstRefresh = await client.PostAsync("/api/library/refresh-jobs", content: null);
+    Assert.Equal(HttpStatusCode.OK, firstRefresh.StatusCode);
+
+    application.SetImportedItems(
+        [
+            new ImportedAudibleItem(
+                "B0EDGE0001",
+                "The Long Way Home",
+                ["Author One", "Author Two"],
+                ["Narrator One", "Narrator Two"],
+                0,
+                135,
+                "{\"asin\":\"B0EDGE0001\",\"title\":\"The Long Way Home\"}")
+        ]);
+
+    var secondRefresh = await client.PostAsync("/api/library/refresh-jobs", content: null);
+    Assert.Equal(HttpStatusCode.OK, secondRefresh.StatusCode);
+
+    var library = await client.GetFromJsonAsync<LibraryItemsResponse>("/api/library/items");
+
+    Assert.NotNull(library);
+    var item = Assert.Single(library.Items);
+    Assert.NotNull(item.CoverImages);
+    var coverImage = Assert.Single(item.CoverImages);
+    Assert.Equal("500", coverImage.Variant);
+    Assert.Equal("https://images.audible.test/B0EDGE0001-500.jpg", coverImage.SourceUrl);
+    Assert.NotNull(coverImage.CachedAsset);
     Assert.Equal(["https://images.audible.test/B0EDGE0001-500.jpg"], assetDownloader.RequestedUrls);
   }
 
