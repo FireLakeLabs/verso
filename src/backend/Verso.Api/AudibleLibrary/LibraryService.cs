@@ -5,7 +5,8 @@ namespace Verso.Api;
 public sealed class LibraryService(
     IDbContextFactory<VersoDbContext> databaseFactory,
     IAudibleLibrarySource source,
-    TimeProvider timeProvider)
+  TimeProvider timeProvider,
+  AudibleCoverAssetCacheService coverAssetCacheService)
 {
   public async Task<StartLibraryRefreshResponse> RunRefreshAsync(CancellationToken cancellationToken)
   {
@@ -58,13 +59,31 @@ public sealed class LibraryService(
       var persistPhase = AddPhase(job, "persist-library", timeProvider.GetUtcNow(), "Updating Current Audible Facts and snapshots.");
       var persistSummary = await ApplySuccessfulRefreshAsync(database, fetchResult.Items, startedAt, cancellationToken);
 
+      foreach (var error in persistSummary.Errors)
+      {
+        job.Errors.Add(
+          new LibraryRefreshJobErrorEntity
+          {
+            Code = error.Code,
+            Message = error.Message,
+            TechnicalDetails = error.TechnicalDetails,
+            Phase = error.Phase
+          });
+      }
+
       persistPhase.Status = LibraryRefreshJobPhaseStatus.Succeeded;
       persistPhase.CompletedAtUtc = timeProvider.GetUtcNow();
       persistPhase.Summary =
-          $"Saved {persistSummary.ImportedItemCount} Audible Items, retained {persistSummary.RetainedNoLongerPresentItemCount} no-longer-present items, and recorded {persistSummary.SnapshotObservationCount} selective observations.";
+          persistSummary.Errors.Count == 0
+            ? $"Saved {persistSummary.ImportedItemCount} Audible Items, retained {persistSummary.RetainedNoLongerPresentItemCount} no-longer-present items, and recorded {persistSummary.SnapshotObservationCount} selective observations."
+            : $"Saved {persistSummary.ImportedItemCount} Audible Items, retained {persistSummary.RetainedNoLongerPresentItemCount} no-longer-present items, recorded {persistSummary.SnapshotObservationCount} selective observations, and found {persistSummary.Errors.Count} cover cache issue(s).";
 
-      job.Status = LibraryRefreshJobStatus.Succeeded;
-      job.PhaseSummary = "Refresh completed successfully.";
+      job.Status = persistSummary.Errors.Count == 0
+        ? LibraryRefreshJobStatus.Succeeded
+        : LibraryRefreshJobStatus.PartialFailure;
+      job.PhaseSummary = persistSummary.Errors.Count == 0
+        ? "Refresh completed successfully."
+        : "Refresh completed with cover cache warnings.";
       job.ImportedItemCount = persistSummary.ImportedItemCount;
       job.RetainedNoLongerPresentItemCount = persistSummary.RetainedNoLongerPresentItemCount;
       job.SnapshotObservationCount = persistSummary.SnapshotObservationCount;
@@ -275,9 +294,11 @@ public sealed class LibraryService(
         .Include(item => item.Contributors)
         .Include(item => item.Series)
         .Include(item => item.Snapshots)
+      .Include(item => item.CoverImages)
         .ToDictionaryAsync(item => item.Asin, StringComparer.Ordinal, cancellationToken);
 
     var snapshotObservationCount = 0;
+    var errors = new List<LibraryOperationError>();
 
     foreach (var (asin, importedItem) in importedByAsin)
     {
@@ -344,6 +365,47 @@ public sealed class LibraryService(
       {
         snapshotObservationCount += AddSnapshot(existingItem, "is-returnable", isReturnable ? "true" : "false", observedAtUtc);
       }
+
+      var existingCoverImages = existingItem.CoverImages.ToDictionary(coverImage => coverImage.Variant, StringComparer.Ordinal);
+      var importedVariants = new HashSet<string>(StringComparer.Ordinal);
+
+      foreach (var importedCoverImage in importedItem.CoverImages ?? [])
+      {
+        importedVariants.Add(importedCoverImage.Variant);
+        existingCoverImages.TryGetValue(importedCoverImage.Variant, out var existingCoverImage);
+
+        try
+        {
+          var cacheResult = await coverAssetCacheService.CacheAsync(
+              asin,
+              importedCoverImage,
+              existingCoverImage,
+              cancellationToken);
+
+          if (existingCoverImage is null)
+          {
+            existingItem.CoverImages.Add(cacheResult.CoverImage);
+            continue;
+          }
+
+          CopyCoverImage(cacheResult.CoverImage, existingCoverImage);
+        }
+        catch (AudibleCoverCachingException exception)
+        {
+          UpsertFailedCoverImage(existingItem, existingCoverImage, asin, importedCoverImage);
+          errors.Add(CreateCoverCachingFailure(asin, importedCoverImage, exception));
+        }
+      }
+
+      var removedCoverImages = existingItem.CoverImages
+          .Where(coverImage => !importedVariants.Contains(coverImage.Variant))
+          .ToArray();
+
+      foreach (var removedCoverImage in removedCoverImages)
+      {
+        coverAssetCacheService.DeleteIfPresent(removedCoverImage.CachedRelativePath);
+        existingItem.CoverImages.Remove(removedCoverImage);
+      }
     }
 
     foreach (var existingItem in existingItems.Values.Where(item => !importedByAsin.ContainsKey(item.Asin)))
@@ -357,7 +419,54 @@ public sealed class LibraryService(
     return new PersistRefreshSummary(
         importedByAsin.Count,
         existingItems.Values.Count(item => item.IsNoLongerPresent),
-        snapshotObservationCount);
+        snapshotObservationCount,
+        errors);
+  }
+
+  private static LibraryOperationError CreateCoverCachingFailure(
+      string asin,
+      ImportedAudibleCoverImage importedCoverImage,
+      AudibleCoverCachingException exception)
+  {
+    return new LibraryOperationError(
+        "audible-cover-cache-failed",
+        "Cover art could not be cached. Verso kept the Audible Item and its source URL for a later refresh.",
+        $"Audible Item {asin}, cover variant {importedCoverImage.Variant}, source URL {importedCoverImage.SourceUrl}: {exception.InnerException?.Message ?? exception.Message}",
+        "cache-cover-assets");
+  }
+
+  private static void UpsertFailedCoverImage(
+      AudibleItemEntity existingItem,
+      AudibleItemCoverImageEntity? existingCoverImage,
+      string asin,
+      ImportedAudibleCoverImage importedCoverImage)
+  {
+    if (existingCoverImage is null)
+    {
+      existingItem.CoverImages.Add(new AudibleItemCoverImageEntity
+      {
+        AudibleItemAsin = asin,
+        Variant = importedCoverImage.Variant,
+        SourceUrl = importedCoverImage.SourceUrl
+      });
+
+      return;
+    }
+
+    existingCoverImage.SourceUrl = importedCoverImage.SourceUrl;
+    existingCoverImage.CachedRelativePath = null;
+    existingCoverImage.CachedContentType = null;
+    existingCoverImage.CachedSizeBytes = null;
+    existingCoverImage.CachedAtUtc = null;
+  }
+
+  private static void CopyCoverImage(AudibleItemCoverImageEntity sourceCoverImage, AudibleItemCoverImageEntity targetCoverImage)
+  {
+    targetCoverImage.SourceUrl = sourceCoverImage.SourceUrl;
+    targetCoverImage.CachedRelativePath = sourceCoverImage.CachedRelativePath;
+    targetCoverImage.CachedContentType = sourceCoverImage.CachedContentType;
+    targetCoverImage.CachedSizeBytes = sourceCoverImage.CachedSizeBytes;
+    targetCoverImage.CachedAtUtc = sourceCoverImage.CachedAtUtc;
   }
 
   private static int AddSnapshot(
@@ -467,5 +576,6 @@ public sealed class LibraryService(
   private sealed record PersistRefreshSummary(
       int ImportedItemCount,
       int RetainedNoLongerPresentItemCount,
-      int SnapshotObservationCount);
+      int SnapshotObservationCount,
+      IReadOnlyList<LibraryOperationError> Errors);
 }
