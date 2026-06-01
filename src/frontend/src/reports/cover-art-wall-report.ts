@@ -95,7 +95,9 @@ function toCoverWallEntry(item: LibraryItemDto): CoverArtWallEntry {
     paletteKey: `${sourceUrl ?? ""}${item.asin}`,
     percentComplete: item.percentComplete,
     purchaseDateUtc: readPurchaseDateUtc(item.rawAudiblePayload),
-    randomKey: `${item.asin}${title}`,
+    randomKey: createStableShuffleKey(
+      [item.asin, title, sourceUrl ?? "", variant ?? ""].join("|"),
+    ),
     runtimeMinutes: Math.max(0, item.runtimeMinutes),
     title,
   };
@@ -144,6 +146,17 @@ function compareTitle(left: CoverArtWallEntry, right: CoverArtWallEntry) {
     left.title.localeCompare(right.title, undefined, { sensitivity: "base" }) ||
     left.asin.localeCompare(right.asin)
   );
+}
+
+function createStableShuffleKey(value: string) {
+  let hash = 2_166_136_261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+
+  return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 function selectCoverImage(

@@ -51,16 +51,35 @@ describe("cover art wall report", () => {
         )
         .map((item) => item.asin),
     );
-    assert.deepEqual(
-      asinsFor(items, "random"),
-      [...items]
-        .sort((left, right) =>
-          `${left.asin}${left.title}`.localeCompare(
-            `${right.asin}${right.title}`,
-          ),
-        )
-        .map((item) => item.asin),
-    );
+    assert.deepEqual(asinsFor(items, "random"), ["B001", "B002", "B003"]);
+
+    const randomItems = [
+      ...items,
+      createItem({
+        asin: "B004",
+        title: "Delta Bloom",
+        sourceUrl: "https://images.audible.test/delta.jpg",
+      }),
+      createItem({
+        asin: "B005",
+        title: "Echo Vale",
+        sourceUrl: "https://images.audible.test/echo.jpg",
+      }),
+      createItem({
+        asin: "B006",
+        title: "Frost Index",
+        sourceUrl: "https://images.audible.test/frost.jpg",
+      }),
+    ];
+
+    assert.deepEqual(asinsFor(randomItems, "random"), [
+      "B004",
+      "B001",
+      "B005",
+      "B002",
+      "B006",
+      "B003",
+    ]);
   });
 
   it("uses cached cover assets and falls back without remote image dependency", () => {
