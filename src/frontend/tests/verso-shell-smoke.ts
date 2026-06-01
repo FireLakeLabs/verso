@@ -111,6 +111,10 @@ try {
 
     await page.getByRole("button", { name: "Covers" }).click();
     await page.locator("h1").filter({ hasText: "Cover wall" }).waitFor();
+    await page
+      .getByRole("img", { name: "Cover art for Cached Cover Smoke" })
+      .waitFor();
+    await page.getByText("Cover not cached").first().waitFor();
     assert.equal(
       await page
         .getByRole("img", { name: "Cover art for Cached Cover Smoke" })

@@ -93,6 +93,67 @@ public sealed class ApiContractTests
   }
 
   [Fact]
+  public async Task SettingsEndpointReturnsExplicitSolidV1DtoContract()
+  {
+    await using var application = new ContractApplicationFactory([]);
+
+    using var client = application.CreateClient();
+
+    var body = await client.GetStringAsync("/api/settings");
+    var json = JsonNode.Parse(body)!.AsObject();
+
+    Assert.True(json.ContainsKey("interfacePreferences"));
+    Assert.True(json.ContainsKey("audibleAuthentication"));
+    Assert.True(json.ContainsKey("refresh"));
+    Assert.True(json.ContainsKey("costBasis"));
+    Assert.True(json.ContainsKey("localData"));
+    Assert.True(json.ContainsKey("archiveExport"));
+    Assert.False(json.ContainsKey("aiProviders"));
+    Assert.False(json.ContainsKey("externalApiKeys"));
+    Assert.False(json.ContainsKey("alerts"));
+    Assert.False(json.ContainsKey("publicProfile"));
+    Assert.False(json.ContainsKey("notifications"));
+    Assert.False(json.ContainsKey("mobileCapture"));
+
+    var interfacePreferences = json["interfacePreferences"]!.AsObject();
+    Assert.True(interfacePreferences.ContainsKey("navChrome"));
+    Assert.True(interfacePreferences.ContainsKey("defaultOverviewVariant"));
+    Assert.True(interfacePreferences.ContainsKey("defaultLibraryView"));
+
+    var audibleAuthentication = json["audibleAuthentication"]!.AsObject();
+    Assert.True(audibleAuthentication.ContainsKey("status"));
+    Assert.True(audibleAuthentication.ContainsKey("locale"));
+    Assert.True(audibleAuthentication.ContainsKey("lastAuthenticatedAtUtc"));
+    Assert.True(audibleAuthentication.ContainsKey("lastError"));
+
+    var refresh = json["refresh"]!.AsObject();
+    Assert.True(refresh.ContainsKey("trigger"));
+    Assert.True(refresh.ContainsKey("retainNoLongerPresentItems"));
+    Assert.True(refresh.ContainsKey("selectiveSnapshotFields"));
+    Assert.Equal("manual", refresh["trigger"]!.GetValue<string>());
+
+    var costBasis = json["costBasis"]!.AsObject();
+    Assert.True(costBasis.ContainsKey("defaultBasis"));
+    Assert.True(costBasis.ContainsKey("perCreditValue"));
+    Assert.True(costBasis.ContainsKey("currencyCode"));
+
+    var localData = json["localData"]!.AsObject();
+    Assert.True(localData.ContainsKey("databaseLocation"));
+    Assert.True(localData.ContainsKey("databaseSizeBytes"));
+    Assert.True(localData.ContainsKey("schemaVersion"));
+    Assert.True(localData.ContainsKey("rawPayloadCount"));
+    Assert.True(localData.ContainsKey("coverCacheLocation"));
+    Assert.True(localData.ContainsKey("coverCacheSizeBytes"));
+    Assert.True(localData.ContainsKey("companionPdfsStatus"));
+
+    var archiveExport = json["archiveExport"]!.AsObject();
+    Assert.True(archiveExport.ContainsKey("format"));
+    Assert.True(archiveExport.ContainsKey("includeRawPayloads"));
+    Assert.True(archiveExport.ContainsKey("coverImages"));
+    Assert.True(archiveExport.ContainsKey("restoreSupported"));
+  }
+
+  [Fact]
   public async Task AuthenticationFailureReturnsTypedOperationErrorContract()
   {
     await using var application = new ContractApplicationFactory([]);

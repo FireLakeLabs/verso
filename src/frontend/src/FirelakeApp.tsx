@@ -322,6 +322,22 @@ export function FirelakeApp() {
     }
   }
 
+  async function handleCancelAuthentication(sessionId: string) {
+    try {
+      await api.cancelAuthentication(sessionId);
+      await loadSettings();
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be cancelled.",
+      );
+
+      throw error;
+    }
+  }
+
   async function handleSignOutAuthentication() {
     try {
       await api.signOutAuthentication();
@@ -348,6 +364,7 @@ export function FirelakeApp() {
       loadError={loadError}
       onChangeFilter={updateFilter}
       onChangePreference={updatePreference}
+      onCancelAuthentication={handleCancelAuthentication}
       onCompleteAuthentication={handleCompleteAuthentication}
       onSetActiveAsin={setActiveAsin}
       onSignOutAuthentication={handleSignOutAuthentication}
