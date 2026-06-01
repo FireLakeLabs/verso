@@ -13,6 +13,7 @@ Use this guide with `CONTEXT.md`, `docs/adr/0010-export-fidelity-first.md`, `doc
 - Cover image source URLs remain Current Audible Facts even when a local Cached Asset exists.
 - Cached cover metadata should include enough information for later export and UI work to find the local file without depending on the original remote URL.
 - Cached Assets are private local state. Do not expose absolute local filesystem paths in API responses or export metadata.
+- Cover download failures should surface as typed refresh/import status and keep the Audible Item plus source cover URL available for a later refresh.
 
 ## Privacy boundary
 
