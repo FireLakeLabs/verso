@@ -4,6 +4,7 @@ import {
   type SettingsResponse,
   type UpdateSettingsRequest,
   createLibraryApi,
+  type HealthFindingsResponse,
   type InterfacePreferencesSettingsDto,
   type LibraryFilters,
   type LibraryItemDetailDto,
@@ -32,6 +33,8 @@ export function FirelakeApp() {
   );
   const [refreshStatus, setRefreshStatus] =
     useState<LibraryRefreshStatusResponse | null>(null);
+  const [healthFindings, setHealthFindings] =
+    useState<HealthFindingsResponse | null>(null);
   const [items, setItems] = useState<readonly LibraryItemDto[]>([]);
   const [selectedAsins, setSelectedAsins] = useState<string[]>([]);
   const [activeAsin, setActiveAsin] = useState<string | null>(null);
@@ -54,14 +57,17 @@ export function FirelakeApp() {
       }
 
       try {
-        const [nextOverview, nextRefreshStatus, nextItems] = await Promise.all([
-          api.getOverview(),
-          api.getRefreshStatus(),
-          api.getItems(filters),
-        ]);
+        const [nextOverview, nextRefreshStatus, nextHealthFindings, nextItems] =
+          await Promise.all([
+            api.getOverview(),
+            api.getRefreshStatus(),
+            api.getHealthFindings("all"),
+            api.getItems(filters),
+          ]);
 
         setOverview(nextOverview);
         setRefreshStatus(nextRefreshStatus);
+        setHealthFindings(nextHealthFindings);
         setItems(nextItems.items);
         setSelectedAsins((currentSelection) => {
           const visibleAsins = new Set(
@@ -197,6 +203,29 @@ export function FirelakeApp() {
       );
     } finally {
       setIsRefreshing(false);
+    }
+  }
+
+  async function handleUpdateHealthFindingDisposition(
+    findingId: string,
+    status: "acknowledged" | "dismissed",
+  ) {
+    try {
+      await api.updateHealthFindingDisposition(findingId, { status });
+      const [nextOverview, nextHealthFindings] = await Promise.all([
+        api.getOverview(),
+        api.getHealthFindings("all"),
+      ]);
+
+      setOverview(nextOverview);
+      setHealthFindings(nextHealthFindings);
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "Finding disposition could not be saved.",
+      );
     }
   }
 
@@ -360,6 +389,7 @@ export function FirelakeApp() {
       filters={filters}
       isLoading={isLoading}
       isRefreshing={isRefreshing}
+      healthFindings={healthFindings}
       items={items}
       loadError={loadError}
       onChangeFilter={updateFilter}
@@ -371,6 +401,9 @@ export function FirelakeApp() {
       onStartAuthentication={handleStartAuthentication}
       onStartRefresh={() => {
         void handleRefresh();
+      }}
+      onUpdateHealthFindingDisposition={(findingId, status) => {
+        void handleUpdateHealthFindingDisposition(findingId, status);
       }}
       onUpdateSettings={persistSettingsUpdate}
       onToggleSelection={toggleSelection}

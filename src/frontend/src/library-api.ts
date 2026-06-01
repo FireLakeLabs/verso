@@ -47,9 +47,47 @@ export type LibraryOverviewResponse = {
     noLongerPresentItems: number;
     completedItems: number;
     inProgressItems: number;
-    openFindingsCount?: number;
+    openFindingsCount: number;
   };
   latestRefreshJob: LibraryRefreshJobDto | null;
+};
+
+export type HealthFindingDispositionDto = {
+  status: "open" | "acknowledged" | "dismissed";
+  updatedAtUtc: string | null;
+};
+
+export type HealthFindingDto = {
+  id: string;
+  kind: string;
+  title: string;
+  message: string;
+  itemAsins: string[];
+  evidence: string[];
+  isCurrent: boolean;
+  disposition: HealthFindingDispositionDto;
+};
+
+export type HealthFindingsResponse = {
+  summary: {
+    currentCount: number;
+    openCount: number;
+    acknowledgedCount: number;
+    dismissedCount: number;
+    historicalCount: number;
+  };
+  findings: HealthFindingDto[];
+};
+
+export type HealthFindingsView = "active" | "dispositioned" | "all";
+
+export type UpdateHealthFindingDispositionRequest = {
+  status: "acknowledged" | "dismissed";
+};
+
+export type HealthFindingDispositionResponse = {
+  disposition: HealthFindingDispositionDto | null;
+  updated: boolean;
 };
 
 export type LibraryItemDto = {
@@ -254,6 +292,10 @@ export function createLibraryApi(baseUrl = "") {
       requestJson<LibraryRefreshStatusResponse>(
         `${baseUrl}/api/library/refresh-status`,
       ),
+    getHealthFindings: (view: HealthFindingsView = "active") =>
+      requestJson<HealthFindingsResponse>(
+        `${baseUrl}/api/library/health-findings${buildHealthFindingsQuery(view)}`,
+      ),
     getItems: (filters: LibraryFilters) =>
       requestJson<LibraryItemsResponse>(
         `${baseUrl}/api/library/items${buildItemsQuery(filters)}`,
@@ -314,7 +356,25 @@ export function createLibraryApi(baseUrl = "") {
           method: "POST",
         },
       ),
+    updateHealthFindingDisposition: (
+      findingId: string,
+      request: UpdateHealthFindingDispositionRequest,
+    ) =>
+      requestJson<HealthFindingDispositionResponse>(
+        `${baseUrl}/api/library/health-findings/${encodeURIComponent(findingId)}/disposition`,
+        {
+          method: "POST",
+          body: JSON.stringify(request),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
   };
+}
+
+function buildHealthFindingsQuery(view: HealthFindingsView) {
+  return view === "active" ? "" : `?view=${encodeURIComponent(view)}`;
 }
 
 function buildItemsQuery(filters: LibraryFilters) {

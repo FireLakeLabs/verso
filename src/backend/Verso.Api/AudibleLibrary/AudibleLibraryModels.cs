@@ -112,7 +112,39 @@ public sealed record LibraryOverviewSummaryDto(
     int PresentItems,
     int NoLongerPresentItems,
     int CompletedItems,
-    int InProgressItems);
+    int InProgressItems,
+    int OpenFindingsCount);
+
+public sealed record HealthFindingsResponse(
+    HealthFindingsSummaryDto Summary,
+    IReadOnlyList<HealthFindingDto> Findings);
+
+public sealed record HealthFindingsSummaryDto(
+    int CurrentCount,
+    int OpenCount,
+    int AcknowledgedCount,
+    int DismissedCount,
+    int HistoricalCount);
+
+public sealed record HealthFindingDto(
+    string Id,
+    string Kind,
+    string Title,
+    string Message,
+    IReadOnlyList<string> ItemAsins,
+    IReadOnlyList<string> Evidence,
+    bool IsCurrent,
+    HealthFindingDispositionDto Disposition);
+
+public sealed record HealthFindingDispositionDto(
+    string Status,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record UpdateHealthFindingDispositionRequest(string Status);
+
+public sealed record HealthFindingDispositionResponse(
+    HealthFindingDispositionDto? Disposition,
+    bool Updated);
 
 public sealed record LibraryItemsResponse(IReadOnlyList<LibraryItemDto> Items);
 

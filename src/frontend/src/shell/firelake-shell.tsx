@@ -14,6 +14,8 @@ import type {
   SettingsResponse,
   StartAudibleAuthenticationResponse,
   UpdateSettingsRequest,
+  HealthFindingDto,
+  HealthFindingsResponse,
   LibraryFilters,
   LibraryItemDetailDto,
   LibraryItemDto,
@@ -78,6 +80,7 @@ type FirelakeShellProps = {
   activeItem: LibraryItemDetailDto | null;
   detailError: string | null;
   filters: LibraryFilters;
+  healthFindings: HealthFindingsResponse | null;
   isLoading: boolean;
   isRefreshing: boolean;
   items: readonly LibraryItemDto[];
@@ -101,6 +104,10 @@ type FirelakeShellProps = {
     locale: string,
   ) => Promise<StartAudibleAuthenticationResponse>;
   onStartRefresh: () => void;
+  onUpdateHealthFindingDisposition: (
+    findingId: string,
+    status: "acknowledged" | "dismissed",
+  ) => void;
   onUpdateSettings: (request: UpdateSettingsRequest) => Promise<unknown>;
   onToggleSelection: (asin: string) => void;
   overview: LibraryOverviewResponse | null;
@@ -301,6 +308,7 @@ export function FirelakeShell({
   activeItem,
   detailError,
   filters,
+  healthFindings,
   isLoading,
   isRefreshing,
   items,
@@ -313,6 +321,7 @@ export function FirelakeShell({
   onSignOutAuthentication,
   onStartAuthentication,
   onStartRefresh,
+  onUpdateHealthFindingDisposition,
   onUpdateSettings,
   onToggleSelection,
   overview,
@@ -443,7 +452,7 @@ export function FirelakeShell({
           <SidebarNavigation
             currentView={currentView}
             itemCount={items.length}
-            findingsCount={overview?.summary.noLongerPresentItems ?? 0}
+            findingsCount={overview?.summary.openFindingsCount ?? 0}
             latestRefreshJob={latestRefreshJob}
             onNavigate={navigate}
           />
@@ -570,7 +579,9 @@ export function FirelakeShell({
 
             {currentView === "findings" ? (
               <FindingsPage
-                findingsCount={overview?.summary.noLongerPresentItems ?? 0}
+                findings={healthFindings}
+                onOpenItem={openItem}
+                onUpdateDisposition={onUpdateHealthFindingDisposition}
                 onNavigate={navigate}
               />
             ) : null}
@@ -2153,39 +2164,292 @@ function CoverWallTile({ entry }: { entry: CoverArtWallEntry }) {
 }
 
 function FindingsPage({
-  findingsCount,
+  findings,
   onNavigate,
+  onOpenItem,
+  onUpdateDisposition,
 }: {
-  findingsCount: number;
+  findings: HealthFindingsResponse | null;
   onNavigate: (view: AppView) => void;
+  onOpenItem: (asin: string) => void;
+  onUpdateDisposition: (
+    findingId: string,
+    status: "acknowledged" | "dismissed",
+  ) => void;
 }) {
-  return (
-    <section className="v-card v-card-accent">
-      <div className="v-card-head">
-        <div>
-          <div className="v-eyebrow">Health findings</div>
-          <h2 className="v-card-title">Workflow placeholder</h2>
-        </div>
-        <span className="v-pill is-info">
-          {findingsCount.toLocaleString()} retained items
-        </span>
-      </div>
-      <div className="v-card-body v-stack-sm">
-        <p className="v-body-copy">
-          Issue #7 owns finding identity and disposition behavior. This shell
-          baseline keeps the destination visible so signed-off navigation does
-          not drift while the workflow catches up.
-        </p>
-        <button
-          type="button"
-          className="v-btn v-btn-outline"
-          onClick={() => onNavigate("reports")}
-        >
-          Open report queue
-        </button>
-      </div>
-    </section>
+  const [findingView, setFindingView] = useState<
+    "open" | "dispositioned" | "all"
+  >("open");
+  const [kindFilter, setKindFilter] = useState("all");
+  const allFindings = findings?.findings ?? [];
+  const filteredByView = allFindings.filter((finding) => {
+    if (findingView === "open") {
+      return finding.isCurrent && finding.disposition.status === "open";
+    }
+
+    if (findingView === "dispositioned") {
+      return finding.disposition.status !== "open";
+    }
+
+    return true;
+  });
+  const visibleFindings = filteredByView.filter(
+    (finding) => kindFilter === "all" || finding.kind === kindFilter,
   );
+  const kindTabs = buildFindingKindTabs(filteredByView);
+  const cautionCount = allFindings.filter(
+    (finding) =>
+      finding.isCurrent &&
+      finding.disposition.status === "open" &&
+      isCautionFinding(finding),
+  ).length;
+  const infoCount = Math.max(
+    0,
+    (findings?.summary.openCount ?? 0) - cautionCount,
+  );
+
+  return (
+    <div className="v-stack-md">
+      <div className="v-kpi-grid v-kpi-grid-4">
+        <KpiCard
+          accent
+          label="Open findings"
+          value={(findings?.summary.openCount ?? 0).toLocaleString()}
+          detail={`${findings?.summary.currentCount ?? 0} current conditions`}
+        />
+        <KpiCard
+          label="Caution"
+          value={cautionCount.toLocaleString()}
+          detail="returnable, duplicate"
+        />
+        <KpiCard
+          label="Info"
+          value={infoCount.toLocaleString()}
+          detail="near-complete, metadata"
+        />
+        <KpiCard
+          label="Dispositioned"
+          value={(
+            (findings?.summary.acknowledgedCount ?? 0) +
+            (findings?.summary.dismissedCount ?? 0)
+          ).toLocaleString()}
+          detail={`${findings?.summary.historicalCount ?? 0} historical`}
+        />
+      </div>
+
+      <section className="v-card">
+        <div className="v-card-head">
+          <div>
+            <div className="v-eyebrow">Library health · advisory only</div>
+            <h2 className="v-card-title">Findings · backend-evaluated</h2>
+          </div>
+          <div className="v-card-toolbar">
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onNavigate("refresh")}
+            >
+              <RefreshCcw aria-hidden="true" className="size-4" />
+              Re-evaluate
+            </button>
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              disabled={true}
+            >
+              Export findings
+            </button>
+          </div>
+        </div>
+
+        <div className="v-finding-controls">
+          <div className="v-segmented" role="tablist" aria-label="Finding view">
+            {[
+              { label: "Open", value: "open" as const },
+              { label: "Dispositioned", value: "dispositioned" as const },
+              { label: "All", value: "all" as const },
+            ].map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                className={`v-segmented-btn ${findingView === tab.value ? "is-active" : ""}`}
+                onClick={() => {
+                  setFindingView(tab.value);
+                  setKindFilter("all");
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="v-finding-kind-tabs">
+            <button
+              type="button"
+              className={`v-finding-tab ${kindFilter === "all" ? "is-active" : ""}`}
+              onClick={() => setKindFilter("all")}
+            >
+              All<span>{filteredByView.length}</span>
+            </button>
+            {kindTabs.map((tab) => (
+              <button
+                key={tab.kind}
+                type="button"
+                className={`v-finding-tab ${kindFilter === tab.kind ? "is-active" : ""}`}
+                onClick={() => setKindFilter(tab.kind)}
+              >
+                {tab.label}
+                <span>{tab.count}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="v-finding-list">
+          {visibleFindings.length > 0 ? (
+            visibleFindings.map((finding) => (
+              <HealthFindingRow
+                key={finding.id}
+                finding={finding}
+                onOpenItem={onOpenItem}
+                onUpdateDisposition={onUpdateDisposition}
+              />
+            ))
+          ) : (
+            <EmptyInline message="All clear in this finding view." />
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function HealthFindingRow({
+  finding,
+  onOpenItem,
+  onUpdateDisposition,
+}: {
+  finding: HealthFindingDto;
+  onOpenItem: (asin: string) => void;
+  onUpdateDisposition: (
+    findingId: string,
+    status: "acknowledged" | "dismissed",
+  ) => void;
+}) {
+  const primaryAsin = finding.itemAsins[0] ?? null;
+  const isOpen = finding.isCurrent && finding.disposition.status === "open";
+
+  return (
+    <article className="v-finding-row">
+      <div
+        className={`v-finding-icon ${isCautionFinding(finding) ? "is-caution" : "is-info"}`}
+      />
+      <div className="v-finding-copy">
+        <div className="v-finding-title-row">
+          <h3 className="v-finding-title">{finding.title}</h3>
+          <span
+            className={`v-pill ${finding.disposition.status === "dismissed" ? "is-accent" : "is-info"}`}
+          >
+            {formatFindingStatus(finding)}
+          </span>
+        </div>
+        <p className="v-body-copy">{finding.message}</p>
+        <div className="v-meta-row">
+          <span>{formatFindingKind(finding.kind)}</span>
+          <span>{finding.itemAsins.join(", ")}</span>
+          {finding.isCurrent ? <span>Current</span> : <span>Historical</span>}
+        </div>
+        {finding.evidence.length > 0 ? (
+          <div className="v-pill-row">
+            {finding.evidence.map((evidence) => (
+              <span key={evidence} className="v-pill is-info">
+                {evidence}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="v-finding-actions">
+        {primaryAsin ? (
+          <button
+            type="button"
+            className="v-btn v-btn-outline v-btn-sm"
+            onClick={() => onOpenItem(primaryAsin)}
+          >
+            Open item
+          </button>
+        ) : null}
+        {isOpen ? (
+          <>
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onUpdateDisposition(finding.id, "acknowledged")}
+            >
+              Acknowledge
+            </button>
+            <button
+              type="button"
+              className="v-btn v-btn-outline v-btn-sm"
+              onClick={() => onUpdateDisposition(finding.id, "dismissed")}
+            >
+              Dismiss
+            </button>
+          </>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function buildFindingKindTabs(findings: readonly HealthFindingDto[]) {
+  return [...findings]
+    .reduce<{ count: number; kind: string; label: string }[]>(
+      (tabs, finding) => {
+        const existing = tabs.find((tab) => tab.kind === finding.kind);
+
+        if (existing) {
+          existing.count += 1;
+        } else {
+          tabs.push({
+            count: 1,
+            kind: finding.kind,
+            label: formatFindingKind(finding.kind),
+          });
+        }
+
+        return tabs;
+      },
+      [],
+    )
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function isCautionFinding(finding: HealthFindingDto): boolean {
+  return (
+    finding.kind === "duplicate-candidate" ||
+    finding.kind === "returnable-barely-started"
+  );
+}
+
+function formatFindingKind(kind: string): string {
+  return (
+    (
+      {
+        "duplicate-candidate": "Possible duplicate",
+        "missing-metadata": "Sparse metadata",
+        "near-complete": "Near-complete",
+        "returnable-barely-started": "Still returnable",
+      } satisfies Record<string, string>
+    )[kind] ?? kind
+  );
+}
+
+function formatFindingStatus(finding: HealthFindingDto): string {
+  if (finding.disposition.status === "open") {
+    return finding.isCurrent ? "Open" : "Resolved";
+  }
+
+  return finding.disposition.status;
 }
 
 function RefreshPage({
