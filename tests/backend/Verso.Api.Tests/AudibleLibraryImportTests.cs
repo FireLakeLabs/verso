@@ -872,7 +872,55 @@ public sealed class AudibleLibraryImportTests
 
     Assert.NotNull(reauthenticationStatus);
     Assert.Equal("failed", reauthenticationStatus.Status);
-    Assert.Contains("identity file is missing", reauthenticationStatus.LastError, StringComparison.OrdinalIgnoreCase);
+    Assert.Equal(
+      "Audible authentication could not be completed. Start a new authentication session and try again.",
+      reauthenticationStatus.LastError);
+
+    var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
+        "/api/audible-authentication/session");
+
+    Assert.NotNull(currentSession);
+    Assert.Equal("authenticated", currentSession.Status);
+    Assert.Equal("us", currentSession.Locale);
+  }
+
+  [Fact]
+  public async Task CancelledReauthenticationPreservesExistingAudibleSession()
+  {
+    await using var application = new VersoApplicationFactory([]);
+    application.SetLoginClient(new FakeAudibleLoginClient());
+
+    using var client = application.CreateClient();
+
+    var startResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("us"));
+    var prompt = await startResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(prompt);
+
+    var completeResponse = await client.PostAsJsonAsync(
+        $"/api/audible-authentication/sessions/{prompt.SessionId}/complete",
+        new CompleteAudibleAuthenticationRequest("https://www.audible.test/ap/maplanding?openid.oa2.authorization_code=fake-code"));
+
+    Assert.Equal(HttpStatusCode.OK, completeResponse.StatusCode);
+
+    var reauthenticationStartResponse = await client.PostAsJsonAsync(
+        "/api/audible-authentication/sessions",
+        new StartAudibleAuthenticationRequest("uk"));
+    var reauthenticationPrompt = await reauthenticationStartResponse.Content.ReadFromJsonAsync<StartAudibleAuthenticationResponse>();
+
+    Assert.NotNull(reauthenticationPrompt);
+
+    var cancelResponse = await client.DeleteAsync($"/api/audible-authentication/sessions/{reauthenticationPrompt.SessionId}");
+
+    Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
+
+    var cancelledStatus = await cancelResponse.Content.ReadFromJsonAsync<AudibleAuthenticationStatusResponse>();
+
+    Assert.NotNull(cancelledStatus);
+    Assert.Equal("failed", cancelledStatus.Status);
+    Assert.Contains("cancelled", cancelledStatus.LastError, StringComparison.OrdinalIgnoreCase);
 
     var currentSession = await client.GetFromJsonAsync<AudibleAuthenticationStatusResponse>(
         "/api/audible-authentication/session");

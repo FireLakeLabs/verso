@@ -296,6 +296,13 @@ export function createLibraryApi(baseUrl = "") {
           },
         },
       ),
+    cancelAuthentication: (sessionId: string) =>
+      requestJson<AudibleAuthenticationStatusResponse>(
+        `${baseUrl}/api/audible-authentication/sessions/${encodeURIComponent(sessionId)}`,
+        {
+          method: "DELETE",
+        },
+      ),
     signOutAuthentication: () =>
       requestNoContent(`${baseUrl}/api/audible-authentication/session`, {
         method: "DELETE",

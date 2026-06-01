@@ -74,6 +74,13 @@ app.MapPost("/api/audible-authentication/sessions/{sessionId:guid}/complete", as
         statusCode: StatusCodes.Status500InternalServerError);
   }
 });
+app.MapDelete("/api/audible-authentication/sessions/{sessionId:guid}", async Task<Results<Ok<AudibleAuthenticationStatusResponse>, NotFound>> (Guid sessionId, AudibleAuthenticationService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.CancelAsync(sessionId, cancellationToken);
+  return result is null
+      ? TypedResults.NotFound()
+      : TypedResults.Ok(result);
+});
 app.MapGet("/api/audible-authentication/session", async (AudibleAuthenticationService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetCurrentAsync(cancellationToken);

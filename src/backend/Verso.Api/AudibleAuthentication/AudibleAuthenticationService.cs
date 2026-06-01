@@ -62,6 +62,20 @@ public sealed class AudibleAuthenticationService(
     return pendingAuthentication.ToStatusResponse();
   }
 
+  public async Task<AudibleAuthenticationStatusResponse?> CancelAsync(Guid sessionId, CancellationToken cancellationToken)
+  {
+    if (!pendingSessions.TryGetValue(sessionId, out var pendingAuthentication))
+    {
+      return null;
+    }
+
+    pendingAuthentication.Cancel();
+    await pendingAuthentication.Runner.WaitAsync(cancellationToken);
+    pendingSessions.TryRemove(sessionId, out _);
+
+    return pendingAuthentication.ToStatusResponse();
+  }
+
   public async Task<AudibleAuthenticationStatusResponse> GetCurrentAsync(CancellationToken cancellationToken)
   {
     await using var database = await databaseFactory.CreateDbContextAsync(cancellationToken);
@@ -139,11 +153,14 @@ public sealed class AudibleAuthenticationService(
     }
     catch (OperationCanceledException) when (pendingAuthentication.TimeoutTokenSource.IsCancellationRequested)
     {
-      pendingAuthentication.MarkFailed("Audible authentication timed out before completion.");
+      pendingAuthentication.MarkFailed(
+          pendingAuthentication.WasCancelled
+              ? "Audible authentication was cancelled. Start a new authentication session when ready."
+              : "Audible authentication timed out before completion.");
     }
     catch (Exception exception)
     {
-      pendingAuthentication.MarkFailed(exception.Message);
+      pendingAuthentication.MarkFailed(GetUserFacingFailureMessage(exception));
     }
     finally
     {
@@ -159,9 +176,7 @@ public sealed class AudibleAuthenticationService(
 
     if (!File.Exists(pendingAuthentication.PendingIdentityFilePath))
     {
-      throw new FileNotFoundException(
-          "The completed Audible identity file is missing.",
-          pendingAuthentication.PendingIdentityFilePath);
+      throw new InvalidOperationException("The completed Audible identity file is missing.");
     }
 
     if (!File.Exists(pendingAuthentication.ActiveIdentityFilePath))
@@ -197,6 +212,18 @@ public sealed class AudibleAuthenticationService(
     }
   }
 
+  private static string GetUserFacingFailureMessage(Exception exception)
+  {
+    return exception switch
+    {
+      FileNotFoundException or IOException or UnauthorizedAccessException =>
+          "Audible authentication could not store the completed session. Start a new authentication session and try again.",
+      InvalidOperationException =>
+          "Audible authentication could not be completed. Start a new authentication session and try again.",
+      _ => "Audible authentication failed. Start a new authentication session and try again."
+    };
+  }
+
   private sealed class PendingAudibleAuthentication(
       string locale,
       string pendingIdentityFilePath,
@@ -206,6 +233,7 @@ public sealed class AudibleAuthenticationService(
   {
     private readonly TaskCompletionSource<ExternalAudibleLoginPrompt> promptSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly TaskCompletionSource<string> responseUrlSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool wasCancelled;
 
     public Guid SessionId { get; } = Guid.NewGuid();
 
@@ -220,6 +248,8 @@ public sealed class AudibleAuthenticationService(
     public DateTimeOffset? AuthenticatedAtUtc { get; private set; }
 
     public string? LastError { get; private set; }
+
+    public bool WasCancelled => wasCancelled;
 
     public Task Runner { get; set; } = Task.CompletedTask;
 
@@ -256,6 +286,12 @@ public sealed class AudibleAuthenticationService(
     public void SetResponseUrl(string responseUrl)
     {
       responseUrlSource.TrySetResult(responseUrl);
+    }
+
+    public void Cancel()
+    {
+      wasCancelled = true;
+      TimeoutTokenSource.Cancel();
     }
 
     public Task<string> WaitForResponseUrlAsync()

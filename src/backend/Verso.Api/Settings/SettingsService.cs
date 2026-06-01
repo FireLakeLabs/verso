@@ -217,7 +217,18 @@ public sealed class SettingsService(
 
   private static long GetFileSize(string path)
   {
-    return File.Exists(path) ? new FileInfo(path).Length : 0;
+    try
+    {
+      return File.Exists(path) ? new FileInfo(path).Length : 0;
+    }
+    catch (IOException)
+    {
+      return 0;
+    }
+    catch (UnauthorizedAccessException)
+    {
+      return 0;
+    }
   }
 
   private static long GetDirectorySize(string path)
@@ -227,8 +238,63 @@ public sealed class SettingsService(
       return 0;
     }
 
-    return Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories)
-        .Select(file => new FileInfo(file).Length)
-        .Sum();
+    var totalSizeBytes = 0L;
+    var pendingDirectories = new Stack<string>();
+    pendingDirectories.Push(path);
+
+    while (pendingDirectories.TryPop(out var directory))
+    {
+      foreach (var file in EnumerateFilesSafely(directory))
+      {
+        totalSizeBytes += GetFileSize(file);
+      }
+
+      foreach (var childDirectory in EnumerateDirectoriesSafely(directory))
+      {
+        pendingDirectories.Push(childDirectory);
+      }
+    }
+
+    return totalSizeBytes;
+  }
+
+  private static IReadOnlyList<string> EnumerateFilesSafely(string directory)
+  {
+    try
+    {
+      return Directory.EnumerateFiles(directory).ToArray();
+    }
+    catch (DirectoryNotFoundException)
+    {
+      return [];
+    }
+    catch (IOException)
+    {
+      return [];
+    }
+    catch (UnauthorizedAccessException)
+    {
+      return [];
+    }
+  }
+
+  private static IReadOnlyList<string> EnumerateDirectoriesSafely(string directory)
+  {
+    try
+    {
+      return Directory.EnumerateDirectories(directory).ToArray();
+    }
+    catch (DirectoryNotFoundException)
+    {
+      return [];
+    }
+    catch (IOException)
+    {
+      return [];
+    }
+    catch (UnauthorizedAccessException)
+    {
+      return [];
+    }
   }
 }

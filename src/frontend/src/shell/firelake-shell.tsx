@@ -90,6 +90,7 @@ type FirelakeShellProps = {
     key: Key,
     value: ShellPreferences[Key],
   ) => void;
+  onCancelAuthentication: (sessionId: string) => Promise<void>;
   onCompleteAuthentication: (
     sessionId: string,
     responseUrl: string,
@@ -306,6 +307,7 @@ export function FirelakeShell({
   loadError,
   onChangeFilter,
   onChangePreference,
+  onCancelAuthentication,
   onCompleteAuthentication,
   onSetActiveAsin,
   onSignOutAuthentication,
@@ -593,6 +595,7 @@ export function FirelakeShell({
             {currentView === "settings" ? (
               <SettingsPage
                 onChangePreference={updatePreference}
+                onCancelAuthentication={onCancelAuthentication}
                 onCompleteAuthentication={onCompleteAuthentication}
                 onOpenRefreshStatus={() => navigate("refresh")}
                 onSignOutAuthentication={onSignOutAuthentication}
@@ -2305,6 +2308,7 @@ function RefreshPage({
 
 function SettingsPage({
   onChangePreference,
+  onCancelAuthentication,
   onCompleteAuthentication,
   onOpenRefreshStatus,
   onSignOutAuthentication,
@@ -2321,6 +2325,7 @@ function SettingsPage({
     key: Key,
     value: ShellPreferences[Key],
   ) => void;
+  onCancelAuthentication: (sessionId: string) => Promise<void>;
   onCompleteAuthentication: (
     sessionId: string,
     responseUrl: string,
@@ -2421,6 +2426,29 @@ function SettingsPage({
         error instanceof Error
           ? error.message
           : "Audible authentication could not be completed.",
+      );
+    } finally {
+      setIsAuthWorking(false);
+    }
+  }
+
+  async function handleCancelAuth() {
+    if (authPrompt === null) {
+      return;
+    }
+
+    setIsAuthWorking(true);
+
+    try {
+      await onCancelAuthentication(authPrompt.sessionId);
+      setAuthPrompt(null);
+      setAuthResponseUrl("");
+      setAuthActionError("Audible authentication was cancelled.");
+    } catch (error) {
+      setAuthActionError(
+        error instanceof Error
+          ? error.message
+          : "Audible authentication could not be cancelled.",
       );
     } finally {
       setIsAuthWorking(false);
@@ -2577,6 +2605,16 @@ function SettingsPage({
                         }}
                       >
                         Complete authentication
+                      </button>
+                      <button
+                        type="button"
+                        className="v-btn v-btn-outline"
+                        disabled={isAuthWorking}
+                        onClick={() => {
+                          void handleCancelAuth();
+                        }}
+                      >
+                        Cancel handoff
                       </button>
                     </div>
                   </div>
