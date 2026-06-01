@@ -6,7 +6,8 @@ public sealed class LibraryService(
     IDbContextFactory<VersoDbContext> databaseFactory,
     IAudibleLibrarySource source,
   TimeProvider timeProvider,
-  AudibleCoverAssetCacheService coverAssetCacheService)
+  AudibleCoverAssetCacheService coverAssetCacheService,
+  ILogger<LibraryService> logger)
 {
   public async Task<StartLibraryRefreshResponse> RunRefreshAsync(CancellationToken cancellationToken)
   {
@@ -291,6 +292,7 @@ public sealed class LibraryService(
         .GroupBy(item => item.Asin, StringComparer.Ordinal)
         .ToDictionary(group => group.Key, group => group.Last(), StringComparer.Ordinal);
     var existingItems = await database.AudibleItems
+        .AsSplitQuery()
         .Include(item => item.Contributors)
         .Include(item => item.Series)
         .Include(item => item.Snapshots)
@@ -366,45 +368,53 @@ public sealed class LibraryService(
         snapshotObservationCount += AddSnapshot(existingItem, "is-returnable", isReturnable ? "true" : "false", observedAtUtc);
       }
 
-      var existingCoverImages = existingItem.CoverImages.ToDictionary(coverImage => coverImage.Variant, StringComparer.Ordinal);
-      var importedVariants = new HashSet<string>(StringComparer.Ordinal);
-
-      foreach (var importedCoverImage in importedItem.CoverImages ?? [])
+      if (importedItem.CoverImages is not null)
       {
-        importedVariants.Add(importedCoverImage.Variant);
-        existingCoverImages.TryGetValue(importedCoverImage.Variant, out var existingCoverImage);
+        var existingCoverImages = existingItem.CoverImages.ToDictionary(coverImage => coverImage.Variant, StringComparer.Ordinal);
+        var importedVariants = new HashSet<string>(StringComparer.Ordinal);
 
-        try
+        foreach (var importedCoverImage in importedItem.CoverImages)
         {
-          var cacheResult = await coverAssetCacheService.CacheAsync(
-              asin,
-              importedCoverImage,
-              existingCoverImage,
-              cancellationToken);
+          importedVariants.Add(importedCoverImage.Variant);
+          existingCoverImages.TryGetValue(importedCoverImage.Variant, out var existingCoverImage);
 
-          if (existingCoverImage is null)
+          try
           {
-            existingItem.CoverImages.Add(cacheResult.CoverImage);
-            continue;
+            var cacheResult = await coverAssetCacheService.CacheAsync(
+                asin,
+                importedCoverImage,
+                existingCoverImage,
+                cancellationToken);
+
+            if (existingCoverImage is null)
+            {
+              existingItem.CoverImages.Add(cacheResult.CoverImage);
+              continue;
+            }
+
+            CopyCoverImage(cacheResult.CoverImage, existingCoverImage);
           }
-
-          CopyCoverImage(cacheResult.CoverImage, existingCoverImage);
+          catch (AudibleCoverCachingException exception)
+          {
+            logger.LogWarning(
+                exception,
+                "Cover caching failed during refresh for Audible Item {Asin} cover variant {CoverVariant}.",
+                asin,
+                importedCoverImage.Variant);
+            UpsertFailedCoverImage(existingItem, existingCoverImage, asin, importedCoverImage);
+            errors.Add(CreateCoverCachingFailure(asin, importedCoverImage, exception));
+          }
         }
-        catch (AudibleCoverCachingException exception)
+
+        var removedCoverImages = existingItem.CoverImages
+            .Where(coverImage => !importedVariants.Contains(coverImage.Variant))
+            .ToArray();
+
+        foreach (var removedCoverImage in removedCoverImages)
         {
-          UpsertFailedCoverImage(existingItem, existingCoverImage, asin, importedCoverImage);
-          errors.Add(CreateCoverCachingFailure(asin, importedCoverImage, exception));
+          coverAssetCacheService.DeleteIfPresent(removedCoverImage.CachedRelativePath);
+          existingItem.CoverImages.Remove(removedCoverImage);
         }
-      }
-
-      var removedCoverImages = existingItem.CoverImages
-          .Where(coverImage => !importedVariants.Contains(coverImage.Variant))
-          .ToArray();
-
-      foreach (var removedCoverImage in removedCoverImages)
-      {
-        coverAssetCacheService.DeleteIfPresent(removedCoverImage.CachedRelativePath);
-        existingItem.CoverImages.Remove(removedCoverImage);
       }
     }
 
@@ -428,10 +438,12 @@ public sealed class LibraryService(
       ImportedAudibleCoverImage importedCoverImage,
       AudibleCoverCachingException exception)
   {
+    var failureType = exception.InnerException?.GetType().Name ?? exception.GetType().Name;
+
     return new LibraryOperationError(
         "audible-cover-cache-failed",
         "Cover art could not be cached. Verso kept the Audible Item and its source URL for a later refresh.",
-        $"Audible Item {asin}, cover variant {importedCoverImage.Variant}, source URL {importedCoverImage.SourceUrl}: {exception.InnerException?.Message ?? exception.Message}",
+      $"Audible Item {asin}, cover variant {importedCoverImage.Variant}, source URL {importedCoverImage.SourceUrl}, failure type {failureType}.",
         "cache-cover-assets");
   }
 
