@@ -13,6 +13,7 @@ import {
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import type {
+  HealthFindingsResponse,
   LibraryItemDetailDto,
   LibraryItemDetailResponse,
   LibraryItemDto,
@@ -56,14 +57,25 @@ type PrototypeVisualData = {
     itemsDetail: string;
     openFindingsDetail: string;
   };
-  findings: readonly { id: string }[];
+  findings: readonly PrototypeFinding[];
   items: readonly PrototypeItem[];
   lastRefresh: string;
   refreshDuration: number;
 };
 
+type PrototypeFinding = {
+  asin: string;
+  dup?: { asin: string; title: string };
+  id: string;
+  kind: string;
+  note: string;
+  severity: "caution" | "info";
+  title: string;
+};
+
 type FixtureBundle = {
   detailByAsin: Map<string, LibraryItemDetailDto>;
+  healthFindings: HealthFindingsResponse;
   items: readonly LibraryItemDto[];
   overview: LibraryOverviewResponse;
   refreshJob: LibraryRefreshJobDto;
@@ -551,6 +563,7 @@ function createFixtureBundle(data: PrototypeVisualData): FixtureBundle {
 
   return {
     detailByAsin,
+    healthFindings: createHealthFindings(data),
     items: libraryItems,
     overview: {
       prototypeDisplay: {
@@ -708,6 +721,10 @@ async function installFixtureRoutes(
     });
   });
 
+  await page.route("**/api/library/health-findings**", async (route) => {
+    await fulfillJson(route, fixtureBundle.healthFindings);
+  });
+
   await page.route("**/api/library/items/*", async (route) => {
     const requestUrl = new URL(route.request().url());
     const asin = decodeURIComponent(
@@ -754,6 +771,55 @@ async function installFixtureRoutes(
   await page.route("**/api/settings", async (route) => {
     await fulfillJson(route, fixtureBundle.settings);
   });
+}
+
+function createHealthFindings(
+  data: PrototypeVisualData,
+): HealthFindingsResponse {
+  const findings = data.findings.map((finding) => {
+    const kind = mapPrototypeFindingKind(finding.kind);
+    const itemAsins = finding.dup?.asin
+      ? [finding.asin, finding.dup.asin]
+      : [finding.asin];
+
+    return {
+      disposition: {
+        status: "open" as const,
+        updatedAtUtc: null,
+      },
+      evidence: [finding.note],
+      id: finding.id,
+      isCurrent: true,
+      itemAsins,
+      kind,
+      message: finding.note,
+      title: finding.title,
+    };
+  });
+
+  return {
+    findings,
+    summary: {
+      acknowledgedCount: 0,
+      currentCount: findings.length,
+      dismissedCount: 0,
+      historicalCount: 0,
+      openCount: findings.length,
+    },
+  };
+}
+
+function mapPrototypeFindingKind(kind: string): string {
+  return (
+    (
+      {
+        duplicate: "duplicate-candidate",
+        "near-finished": "near-complete",
+        "sparse-meta": "missing-metadata",
+        "still-returnable": "returnable-barely-started",
+      } satisfies Record<string, string>
+    )[kind] ?? "missing-metadata"
+  );
 }
 
 function filterLibraryItems(

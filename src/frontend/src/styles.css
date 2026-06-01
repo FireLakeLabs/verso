@@ -589,6 +589,10 @@ a {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.v-kpi-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .v-kpi-grid-5 {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
@@ -1328,6 +1332,99 @@ a {
   color: var(--info);
 }
 
+.v-finding-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 18px 16px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.v-finding-kind-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v-finding-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-1);
+  color: var(--fg-2);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.v-finding-tab.is-active {
+  border-color: var(--accent);
+  color: var(--fg-1);
+}
+
+.v-finding-tab span {
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.v-finding-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.v-finding-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid var(--line-1);
+}
+
+.v-finding-row:last-child {
+  border-bottom: 0;
+}
+
+.v-finding-icon {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--info);
+}
+
+.v-finding-icon.is-caution {
+  background: var(--accent);
+}
+
+.v-finding-copy,
+.v-finding-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.v-finding-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.v-finding-title {
+  margin: 0;
+  color: var(--fg-1);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.v-finding-actions {
+  align-items: flex-end;
+  min-width: 132px;
+}
+
 .v-definition-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1422,6 +1519,7 @@ a {
 
 @media (max-width: 1180px) {
   .v-metric-grid-4,
+  .v-kpi-grid-4,
   .v-kpi-grid-5,
   .v-book-grid,
   .v-card-grid,

@@ -15,6 +15,8 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
 
   public DbSet<LibraryRefreshJobEntity> LibraryRefreshJobs => Set<LibraryRefreshJobEntity>();
 
+  public DbSet<HealthFindingDispositionEntity> HealthFindingDispositions => Set<HealthFindingDispositionEntity>();
+
   protected override void OnModelCreating(ModelBuilder modelBuilder)
   {
     var audibleItem = modelBuilder.Entity<AudibleItemEntity>();
@@ -117,6 +119,19 @@ public sealed class VersoDbContext(DbContextOptions<VersoDbContext> options) : D
     refreshError.Property(item => item.Message).HasMaxLength(256);
     refreshError.Property(item => item.TechnicalDetails).HasMaxLength(256);
     refreshError.Property(item => item.Phase).HasMaxLength(64);
+
+    var healthDisposition = modelBuilder.Entity<HealthFindingDispositionEntity>();
+    healthDisposition.ToTable("HealthFindingDispositions");
+    healthDisposition.HasKey(item => item.FindingId);
+    healthDisposition.Property(item => item.FindingId).HasMaxLength(64);
+    healthDisposition.Property(item => item.IdentityKey).HasMaxLength(512);
+    healthDisposition.Property(item => item.Kind).HasMaxLength(64);
+    healthDisposition.Property(item => item.Status).HasMaxLength(32);
+    healthDisposition.Property(item => item.LastTitle).HasMaxLength(512);
+    healthDisposition.Property(item => item.LastMessage).HasColumnType("TEXT");
+    healthDisposition.Property(item => item.LastItemAsins).HasColumnType("TEXT");
+    healthDisposition.Property(item => item.LastEvidence).HasColumnType("TEXT");
+    healthDisposition.HasIndex(item => item.IdentityKey).IsUnique();
   }
 }
 
@@ -322,4 +337,29 @@ public enum LibraryRefreshJobPhaseStatus
   Succeeded,
   Failed,
   Skipped
+}
+
+public sealed class HealthFindingDispositionEntity
+{
+  public string FindingId { get; set; } = string.Empty;
+
+  public string IdentityKey { get; set; } = string.Empty;
+
+  public string Kind { get; set; } = string.Empty;
+
+  public string Status { get; set; } = string.Empty;
+
+  public DateTimeOffset CreatedAtUtc { get; set; }
+
+  public DateTimeOffset UpdatedAtUtc { get; set; }
+
+  public DateTimeOffset LastSeenAtUtc { get; set; }
+
+  public string LastTitle { get; set; } = string.Empty;
+
+  public string LastMessage { get; set; } = string.Empty;
+
+  public string LastItemAsins { get; set; } = string.Empty;
+
+  public string LastEvidence { get; set; } = string.Empty;
 }

@@ -5,9 +5,10 @@ namespace Verso.Api;
 public sealed class LibraryService(
     IDbContextFactory<VersoDbContext> databaseFactory,
     IAudibleLibrarySource source,
-  TimeProvider timeProvider,
-  AudibleCoverAssetCacheService coverAssetCacheService,
-  ILogger<LibraryService> logger)
+    HealthFindingService healthFindingService,
+    AudibleCoverAssetCacheService coverAssetCacheService,
+    ILogger<LibraryService> logger,
+    TimeProvider timeProvider)
 {
   public async Task<StartLibraryRefreshResponse> RunRefreshAsync(CancellationToken cancellationToken)
   {
@@ -155,7 +156,8 @@ public sealed class LibraryService(
         items.Count(item => !item.IsNoLongerPresent),
         items.Count(item => item.IsNoLongerPresent),
         items.Count(item => item.PercentComplete >= 95),
-        items.Count(item => item.PercentComplete > 0 && item.PercentComplete < 95));
+        items.Count(item => item.PercentComplete > 0 && item.PercentComplete < 95),
+        await healthFindingService.CountOpenCurrentFindingsAsync(cancellationToken));
 
     return new LibraryOverviewResponse(summary, latestJob is null ? null : MapJob(latestJob));
   }
@@ -170,7 +172,7 @@ public sealed class LibraryService(
     var items = await database.AudibleItems
         .AsNoTracking()
         .Include(item => item.Contributors)
-      .Include(item => item.CoverImages)
+        .Include(item => item.CoverImages)
         .Include(item => item.Snapshots)
         .ToListAsync(cancellationToken);
 
@@ -296,7 +298,7 @@ public sealed class LibraryService(
         .Include(item => item.Contributors)
         .Include(item => item.Series)
         .Include(item => item.Snapshots)
-      .Include(item => item.CoverImages)
+        .Include(item => item.CoverImages)
         .ToDictionaryAsync(item => item.Asin, StringComparer.Ordinal, cancellationToken);
 
     var snapshotObservationCount = 0;

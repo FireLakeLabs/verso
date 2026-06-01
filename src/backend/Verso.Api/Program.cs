@@ -26,6 +26,7 @@ builder.Services.AddHttpClient<IAudibleAssetDownloader, AudibleAssetDownloader>(
 builder.Services.AddSingleton<IAudibleLoginClient, AudibleApiLoginClient>();
 builder.Services.AddSingleton<AudibleAuthenticationService>();
 builder.Services.AddScoped<SettingsService>();
+builder.Services.AddScoped<HealthFindingService>();
 builder.Services.AddScoped<LibraryService>();
 builder.Services.AddSingleton<AudibleCoverAssetCacheService>();
 builder.Services.AddScoped<AudibleLibraryImportService>();
@@ -155,6 +156,27 @@ libraryGroup.MapGet("/items", async Task<Ok<LibraryItemsResponse>> (
 libraryGroup.MapGet("/items/{asin}", async Task<Results<Ok<LibraryItemDetailResponse>, NotFound>> (string asin, LibraryService service, CancellationToken cancellationToken) =>
 {
   var result = await service.GetLibraryItemAsync(asin, cancellationToken);
+  return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+});
+libraryGroup.MapGet("/health-findings", async Task<Ok<HealthFindingsResponse>> (string? view, HealthFindingService service, CancellationToken cancellationToken) =>
+{
+  var result = await service.GetFindingsAsync(view, cancellationToken);
+  return TypedResults.Ok(result);
+});
+libraryGroup.MapPost("/health-findings/{findingId}/disposition", async Task<Results<Ok<HealthFindingDispositionResponse>, NotFound, ProblemHttpResult>> (
+    string findingId,
+    UpdateHealthFindingDispositionRequest request,
+    HealthFindingService service,
+    CancellationToken cancellationToken) =>
+{
+  if (!HealthFindingService.IsValidDispositionStatus(request.Status))
+  {
+    return TypedResults.Problem(
+        statusCode: StatusCodes.Status400BadRequest,
+        title: "Invalid finding disposition.");
+  }
+
+  var result = await service.UpdateDispositionAsync(findingId, request, cancellationToken);
   return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
 });
 app.MapGet("/api/library/items/{asin}/cover-images/{variant}", async Task<Results<FileContentHttpResult, ProblemHttpResult>> (string asin, string variant, AudibleLibraryImportService service, CancellationToken cancellationToken) =>

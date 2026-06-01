@@ -154,6 +154,103 @@ public sealed class ApiContractTests
   }
 
   [Fact]
+  public async Task HealthFindingsEndpointReturnsExplicitCamelCaseDtoContract()
+  {
+    await using var application = new ContractApplicationFactory(
+        [
+            new ImportedAudibleItem(
+                "B00NEAR001",
+                "Nearly Complete Contract",
+                ["Author One"],
+                ["Narrator One"],
+                300,
+                94,
+                "{\"asin\":\"B00NEAR001\"}")
+        ]);
+
+    using var client = application.CreateClient();
+    var refreshResponse = await client.PostAsync("/api/library/refresh-jobs", content: null);
+
+    Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+
+    var body = await client.GetStringAsync("/api/library/health-findings");
+    var json = JsonNode.Parse(body)!.AsObject();
+    var summary = json["summary"]!.AsObject();
+    var finding = json["findings"]!.AsArray().Single()!.AsObject();
+    var disposition = finding["disposition"]!.AsObject();
+
+    Assert.True(json.ContainsKey("summary"));
+    Assert.True(json.ContainsKey("findings"));
+    Assert.True(summary.ContainsKey("currentCount"));
+    Assert.True(summary.ContainsKey("openCount"));
+    Assert.True(summary.ContainsKey("acknowledgedCount"));
+    Assert.True(summary.ContainsKey("dismissedCount"));
+    Assert.True(summary.ContainsKey("historicalCount"));
+    Assert.True(finding.ContainsKey("id"));
+    Assert.True(finding.ContainsKey("kind"));
+    Assert.True(finding.ContainsKey("title"));
+    Assert.True(finding.ContainsKey("message"));
+    Assert.True(finding.ContainsKey("itemAsins"));
+    Assert.True(finding.ContainsKey("evidence"));
+    Assert.True(finding.ContainsKey("isCurrent"));
+    Assert.True(finding.ContainsKey("disposition"));
+    Assert.True(disposition.ContainsKey("status"));
+    Assert.True(disposition.ContainsKey("updatedAtUtc"));
+    Assert.False(finding.ContainsKey("identityKey"));
+    Assert.Equal("near-complete", finding["kind"]!.GetValue<string>());
+    Assert.Equal("open", disposition["status"]!.GetValue<string>());
+  }
+
+  [Fact]
+  public async Task FindingDispositionRejectsUnsupportedSnoozeContract()
+  {
+    await using var application = new ContractApplicationFactory(
+        [
+            new ImportedAudibleItem(
+                "B00NEAR001",
+                "Nearly Complete Contract",
+                ["Author One"],
+                ["Narrator One"],
+                300,
+                94,
+                "{\"asin\":\"B00NEAR001\"}")
+        ]);
+
+    using var client = application.CreateClient();
+    var refreshResponse = await client.PostAsync("/api/library/refresh-jobs", content: null);
+    Assert.Equal(HttpStatusCode.OK, refreshResponse.StatusCode);
+
+    var findings = await client.GetFromJsonAsync<HealthFindingsResponse>("/api/library/health-findings");
+    Assert.NotNull(findings);
+    var finding = Assert.Single(findings.Findings);
+
+    var response = await client.PostAsJsonAsync(
+        $"/api/library/health-findings/{finding.Id}/disposition",
+        new UpdateHealthFindingDispositionRequest("snoozed"));
+
+    Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+    var body = await response.Content.ReadAsStringAsync();
+    var json = JsonNode.Parse(body)!.AsObject();
+
+    Assert.Equal("Invalid finding disposition.", json["title"]!.GetValue<string>());
+    Assert.Equal(400, json["status"]!.GetValue<int>());
+  }
+
+  [Fact]
+  public async Task FindingDispositionReturnsNotFoundForUnknownCurrentFinding()
+  {
+    await using var application = new ContractApplicationFactory([]);
+    using var client = application.CreateClient();
+
+    var response = await client.PostAsJsonAsync(
+        "/api/library/health-findings/missing-finding/disposition",
+        new UpdateHealthFindingDispositionRequest("acknowledged"));
+
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+  }
+
+  [Fact]
   public async Task AuthenticationFailureReturnsTypedOperationErrorContract()
   {
     await using var application = new ContractApplicationFactory([]);
